@@ -2,13 +2,14 @@
 import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
-import { useBrokerStore } from "@/stores/brokerStore";
+import { useBuilderStore } from "@/stores/builderStore";
 
 const route = useRoute();
 const router = useRouter();
 
-const brokerStore = useBrokerStore();
-const { brokerData } = storeToRefs(brokerStore);
+const builderStore = useBuilderStore();
+const { currentBuilder, currentBuilderLoading, currentBuilderError } =
+  storeToRefs(builderStore);
 
 const submitting = ref(false);
 const submitMsg = ref("");
@@ -19,9 +20,7 @@ const contactForm = ref({
   email: "",
 });
 
-// brokerData in the store is shaped { user, totalSiteVisits } when fetched by id.
-const broker = computed(() => brokerData.value?.user ?? brokerData.value ?? {});
-const totalSiteVisits = computed(() => brokerData.value?.totalSiteVisits ?? 0);
+const builder = computed(() => currentBuilder.value || {});
 
 const initials = (name) =>
   (name || "?")
@@ -32,18 +31,15 @@ const initials = (name) =>
     .join("")
     .toUpperCase();
 
-const loadBroker = async (id) => {
+const loadBuilder = async (id) => {
   if (!id) return;
-  await brokerStore.getBrokerData(id);
+  await builderStore.getBuilderById(id);
 };
 
-onMounted(() => {
-  loadBroker(route.params.id);
-});
-
+onMounted(() => loadBuilder(route.params.id));
 watch(
   () => route.params.id,
-  (id) => loadBroker(id),
+  (id) => loadBuilder(id),
 );
 
 const handleConnect = () => {
@@ -56,7 +52,7 @@ const handleConnect = () => {
   // TODO: wire to a real "request callback" endpoint when one is exposed.
   setTimeout(() => {
     submitting.value = false;
-    submitMsg.value = "Thanks — the partner will reach out shortly.";
+    submitMsg.value = "Thanks — the builder will reach out shortly.";
     contactForm.value = { firstName: "", lastName: "", phone: "", email: "" };
   }, 600);
 };
@@ -71,89 +67,90 @@ const handleConnect = () => {
       <i class="pi pi-arrow-left text-xs"></i> Back
     </button>
 
-    <div class="flex flex-col lg:flex-row gap-6">
+    <div v-if="currentBuilderLoading" class="py-16 text-center text-gray-500">
+      Loading…
+    </div>
+
+    <div
+      v-else-if="currentBuilderError"
+      class="bg-red-50 text-red-600 text-sm rounded-md p-3"
+    >
+      {{ currentBuilderError }}
+    </div>
+
+    <div v-else class="flex flex-col lg:flex-row gap-6">
       <!-- LEFT (70%) -->
       <div class="w-full lg:w-[70%]">
         <div class="flex items-center gap-4 mb-4">
           <div
-            class="h-20 w-20 rounded-full bg-orange-500 text-white flex items-center justify-center text-2xl font-bold border-4 border-white shadow"
+            class="h-20 w-20 rounded-full bg-blue-600 text-white flex items-center justify-center text-2xl font-bold border-4 border-white shadow"
           >
             <img
-              v-if="broker?.brokerImage"
-              :src="broker.brokerImage"
-              :alt="broker.name"
+              v-if="builder?.logo"
+              :src="builder.logo"
+              :alt="builder.companyName"
               class="h-full w-full rounded-full object-cover"
             />
-            <span v-else>{{ initials(broker?.name) }}</span>
+            <span v-else>{{ initials(builder?.companyName) }}</span>
           </div>
           <div>
             <h1 class="text-2xl font-semibold text-gray-900">
-              {{ broker?.name || "Broker" }}
+              {{ builder?.companyName || "Builder" }}
             </h1>
             <p class="text-sm text-gray-500">
-              {{ broker?.firmName || "Independent" }}
+              {{ builder?.newReraNumber ? `RERA: ${builder.newReraNumber}` : "Verified developer" }}
             </p>
           </div>
         </div>
 
         <div class="border-b mb-6"></div>
 
-        <h2 class="text-lg font-semibold mb-4">About the firm</h2>
+        <h2 class="text-lg font-semibold mb-3">About</h2>
+        <p class="text-sm text-gray-700 leading-relaxed mb-6">
+          {{ builder?.aboutUs || "No description provided yet." }}
+        </p>
 
+        <h2 class="text-lg font-semibold mb-3">Contact details</h2>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
           <div>
             <p class="text-gray-500 text-xs uppercase tracking-wider">Phone</p>
             <p class="mt-1 text-sm text-gray-800">
-              {{ broker?.phoneNumber || "—" }}
+              {{ builder?.contactNumber || "—" }}
             </p>
           </div>
           <div>
             <p class="text-gray-500 text-xs uppercase tracking-wider">Email</p>
             <p class="mt-1 text-sm text-gray-800 truncate">
-              {{ broker?.email || "—" }}
+              {{ builder?.email || "—" }}
             </p>
           </div>
           <div>
-            <p class="text-gray-500 text-xs uppercase tracking-wider">RERA ID</p>
+            <p class="text-gray-500 text-xs uppercase tracking-wider">Address</p>
             <p class="mt-1 text-sm text-gray-800">
-              {{ broker?.reraNumber || "—" }}
+              {{ builder?.newAddress || "—" }}
             </p>
           </div>
         </div>
 
-        <h2 class="text-lg font-semibold mb-3">Activity</h2>
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div class="bg-orange-50 rounded-xl p-3">
-            <p class="text-xs text-orange-700">Site visits</p>
-            <p class="text-2xl font-bold text-orange-800 mt-1">
-              {{ totalSiteVisits }}
-            </p>
-          </div>
-          <div class="bg-blue-50 rounded-xl p-3">
-            <p class="text-xs text-blue-700">Total leads</p>
-            <p class="text-2xl font-bold text-blue-800 mt-1">
-              {{ broker?.totalLeads ?? 0 }}
-            </p>
-          </div>
-          <div class="bg-green-50 rounded-xl p-3">
-            <p class="text-xs text-green-700">Closed deals</p>
-            <p class="text-2xl font-bold text-green-800 mt-1">
-              {{ broker?.totalClosedDeals ?? 0 }}
-            </p>
-          </div>
-          <div class="bg-purple-50 rounded-xl p-3">
-            <p class="text-xs text-purple-700">Chanakya points</p>
-            <p class="text-2xl font-bold text-purple-800 mt-1">
-              {{ broker?.chanakyaPoints ?? 0 }}
-            </p>
-          </div>
+        <div v-if="builder?.guideBook" class="bg-orange-50 rounded-xl p-4">
+          <p class="text-xs uppercase tracking-wider text-orange-700">
+            Guide book
+          </p>
+          <a
+            :href="builder.guideBook"
+            target="_blank"
+            rel="noopener"
+            class="text-sm text-orange-700 underline mt-1 inline-block"
+          >
+            Open guide book →
+          </a>
         </div>
       </div>
 
       <!-- RIGHT (30%) — Contact form -->
       <div class="w-full lg:w-[30%]">
         <div class="border rounded-xl p-4 flex flex-col gap-3 bg-white">
-          <h3 class="font-semibold text-gray-900">Connect with this partner</h3>
+          <h3 class="font-semibold text-gray-900">Talk to this builder</h3>
 
           <input
             v-model="contactForm.firstName"

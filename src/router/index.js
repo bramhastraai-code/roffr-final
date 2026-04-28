@@ -22,8 +22,12 @@ import CorporateView from '@/views/CorporateView.vue'
 import GroupBuyView from '@/views/GroupBuyView.vue'
 import ProjectView2 from '@/views/ProjectView2.vue'
 import PropertiesView2 from '@/views/PropertiesView2.vue'
+import SearchView from '@/views/SearchView.vue'
 import BrokerListView from '@/views/BrokerListView.vue'
 import BrokerDetailsView from '@/views/BrokerDetailsView.vue'
+import BuilderListView from '@/views/BuilderListView.vue'
+import BuilderDetailsView from '@/views/BuilderDetailsView.vue'
+import SocialView from '@/views/SocialView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -49,6 +53,11 @@ const router = createRouter({
           component: ProjectView2
         },
         {
+          name: "search",
+          path: "/search",
+          component: SearchView
+        },
+        {
           name: "properties",
           path: "/properties",
           component: PropertiesView2
@@ -67,6 +76,31 @@ const router = createRouter({
           name: "broker-details",
           path: "/broker-details/:id",
           component: BrokerDetailsView
+        },
+        {
+          name: "channel-partners",
+          path: "/channel-partners",
+          component: BrokerListView
+        },
+        {
+          name: "channel-partner-details",
+          path: "/channel-partners/:id",
+          component: BrokerDetailsView
+        },
+        {
+          name: "builders",
+          path: "/builders",
+          component: BuilderListView
+        },
+        {
+          name: "builder-details",
+          path: "/builders/:id",
+          component: BuilderDetailsView
+        },
+        {
+          name: "social",
+          path: "/social",
+          component: SocialView
         },
         {
           name: "project-details",

@@ -9,7 +9,7 @@ import { debounce } from "@/utils/debounce";
 const router = useRouter();
 
 const searchStore = useSearchStore();
-const { searchSuggestionData, term } = storeToRefs(searchStore);
+const { searchSuggestionData, term, city: storeCity } = storeToRefs(searchStore);
 
 const projectStore = useProjectStore();
 const { uniqueCitiesData } = storeToRefs(projectStore);
@@ -28,14 +28,19 @@ const suggestionsList = computed(() =>
 );
 
 // Fetch suggestions on debounced typing.
+// City is included so when the term yields nothing the backend can fall back
+// to nearby items in the picked city instead of returning an empty list.
 const fetchSuggestions = debounce(async () => {
   const t = (searchInput.value || "").trim();
-  if (t.length < 2) {
+  // Allow empty term ONLY when a city is picked — that surfaces "what's
+  // available in this city" suggestions before the user types anything.
+  if (t.length < 2 && !selectedCity.value) {
     searchSuggestionData.value = [];
     suggestionsVisible.value = false;
     return;
   }
   term.value = t;
+  storeCity.value = selectedCity.value;
   await searchStore.getSearchSuggestion();
   suggestionsVisible.value = true;
 }, 300);
@@ -46,7 +51,10 @@ watch(searchInput, () => {
 
 const onCitySelect = (city) => {
   selectedCity.value = city;
+  storeCity.value = city;
   cityDropdownOpen.value = false;
+  // Refresh suggestions with the new city context.
+  fetchSuggestions();
 };
 
 const goToResults = () => {
@@ -54,7 +62,7 @@ const goToResults = () => {
   if (searchInput.value?.trim()) query.q = searchInput.value.trim();
   if (selectedCity.value) query.city = selectedCity.value;
   suggestionsVisible.value = false;
-  router.push({ path: "/project", query });
+  router.push({ path: "/search", query });
 };
 
 const onSearchButtonClicked = () => {

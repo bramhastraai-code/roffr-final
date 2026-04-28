@@ -30,6 +30,9 @@ const endpoints = {
   customerProjects: "/projects/customer", // append /:customerId
   siteVisits: "/site-visits", // POST to create
   customerSiteVisits: "/site-visits/customer", // append /:customerId
+
+  // Social feed (Twitter-like)
+  social: "/social",
 };
 
 export default endpoints;

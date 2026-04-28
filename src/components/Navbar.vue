@@ -37,7 +37,10 @@ const links = [
   { label: "Home", path: "/" },
   { label: "Projects", path: "/project" },
   { label: "Properties", path: "/properties" },
-  { label: "About Us", path: "/about" },
+  { label: "Builders", path: "/builders" },
+  { label: "Channel Partners", path: "/channel-partners" },
+  { label: "Community", path: "/social" },
+  // { label: "About Us", path: "/about" },
   // {
   //   label: "Resources",
   //   path: "/resources",
@@ -47,10 +50,8 @@ const links = [
   //     { label: "Case Studies", path: "/case-study" },
   //   ],
   // },
-  { label: "Loan", path: "/loan" },
-  { label: "Channel", path: "/channel-partner" },
-  { label: "Corporate", path: "/corporate" },
-  { label: "Group Buying", path: "/group" },
+  // { label: "Loan", path: "/loan" },
+  // { label: "Corporate", path: "/corporate" },
 ];
 
 // Protected navigation for Projects route
