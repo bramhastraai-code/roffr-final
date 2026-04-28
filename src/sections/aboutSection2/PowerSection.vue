@@ -69,13 +69,13 @@ onUnmounted(() => {
     <div class="max-w-7xl mx-auto">
       
       <!-- Section Header -->
-      <div class="timeline-header mb-12 lg:mb-16">
+      <div class="timeline-header">
         <span class="timeline-eyebrow">THE TIMELINE</span>
         <h2 class="timeline-title">Our Evolution</h2>
       </div>
 
       <!-- Timeline Grid -->
-      <div class="timeline-grid grid grid-cols-1 lg:grid-cols-3 gap-8 pb-16 lg:pb-24">
+      <div class="timeline-grid grid grid-cols-1 lg:grid-cols-3 gap-8 mt-6 mb-6">
         
         <div v-for="(card, index) in timelineCards" :key="index" :class="['card-wrapper flex', index === 1 ? 'staggered-card' : '']">
           <div class="timeline-card w-full">

@@ -7,6 +7,7 @@ import ProjectSummarySection from '@/sections/projectDetailSections2/ProjectSumm
 import { onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { useProjectStore } from '@/stores/projectStore';
+import GroupBuyingSection from '@/sections/projectDetailSections2/GroupBuyingSection.vue';
 
 const route = useRoute()
 const projectId = route.params.id
@@ -22,6 +23,7 @@ onMounted(async() => {
     <!-- <ProjectCardSection/>
     <ProjectDetailSection/> -->
     <HeroSection/>
+    <GroupBuyingSection/>
     <ProjectSummarySection/>
     <AboutDeveloperSection/>
   </main>

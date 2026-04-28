@@ -32,12 +32,12 @@ onMounted(() => {
     <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
       <!-- Left Content -->
       <div ref="heroContent" class="hero-content order-2 lg:order-1">
-        <span class="vision-tag">OUR VISION</span>
-        <h1 class="hero-title">
+        <span class="font-outfit text-orange-500 font-semibold tracking-wide">OUR VISION</span>
+        <h1 class="font-bold leading-tight text-[80px]">
           Building the <br />
           <span class="text-accent">Digital Future</span>
         </h1>
-        <p class="hero-description">
+        <p class="hero-description mt-4">
           We don't just develop software; we architect the infrastructure of 
           tomorrow's connectivity. Roffr is where engineering meets 
           editorial elegance.
@@ -46,11 +46,11 @@ onMounted(() => {
 
       <!-- Right Content: Image & Card -->
       <div class="hero-visual order-1 lg:order-2 relative">
-        <div ref="heroImage" class="main-image-wrapper">
+        <div ref="heroImage" class="h-[550px] rounded-2xl">
           <img 
             src="/images/AboutPage/aboutHero/about-bg.webp" 
             alt="Digital Architecture" 
-            class="hero-img"
+            class="hero-img rounded-2xl"
           />
         </div>
         
@@ -79,17 +79,6 @@ onMounted(() => {
   min-height: 80vh;
   display: flex;
   align-items: center;
-}
-
-.vision-tag {
-  color: #ff5a1f;
-  font-family: 'Outfit', sans-serif;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
-  font-size: 0.875rem;
-  margin-bottom: 1.5rem;
-  display: block;
 }
 
 .hero-title {

@@ -22,12 +22,7 @@ const tabs = [
 const activeTab = ref("under");
 
 // 🎨 Card background colors
-const colors = [
-  "bg-[#E8DFC8]",
-  "bg-[#EADDE3]",
-  "bg-[#DCEBE3]",
-  "bg-[#DCE3EC]",
-];
+const colors = ["bg-[#E8DFC8]", "bg-[#EADDE3]", "bg-[#DCEBE3]", "bg-[#DCE3EC]"];
 
 // ✅ Filter projects based on tab
 const filteredProjects = computed(() => {
@@ -72,9 +67,7 @@ const activeCards = computed(() => {
         @click="activeTab = tab.key"
         :class="[
           'px-5 py-2 rounded-full transition text-[11px] md:text-sm',
-          activeTab === tab.key
-            ? 'bg-black text-white'
-            : 'text-gray-600',
+          activeTab === tab.key ? 'bg-black text-white' : 'text-gray-600',
         ]"
       >
         {{ tab.label }}
@@ -82,10 +75,7 @@ const activeCards = computed(() => {
     </div>
 
     <!-- Empty State -->
-    <div
-      v-if="!activeCards.length"
-      class="text-center py-10 text-gray-500"
-    >
+    <div v-if="!activeCards.length" class="text-center py-10 text-gray-500">
       No projects found
     </div>
 
@@ -98,34 +88,69 @@ const activeCards = computed(() => {
           320: { slidesPerView: 1 },
           640: { slidesPerView: 2 },
           1024: { slidesPerView: 3 },
-          1280: { slidesPerView: 4 }
+          1280: { slidesPerView: 3 },
         }"
       >
-        <SwiperSlide
-          v-for="(card, index) in activeCards"
-          :key="index"
-        >
+        <SwiperSlide v-for="(card, index) in activeCards" :key="index" class="py-4">
           <div
-            class="rounded-2xl p-5 h-[320px] flex flex-col justify-between shadow-sm"
-            :class="card.bg"
+            class="rounded-2xl overflow-hidden shadow-md bg-white flex flex-col h-[520px]"
           >
-            <!-- Top Content -->
-            <div>
-              <h2 class="text-lg font-semibold">
-                {{ card.title }}
-              </h2>
-              <p class="text-sm text-gray-600 mt-1">
-                {{ card.price }}
-              </p>
+            <!-- IMAGE -->
+            <div class="h-[280px] w-full">
+              <img :src="card.img" alt="" class="w-full h-full object-cover" />
             </div>
 
-            <!-- Image -->
-            <div class="flex justify-center">
-              <img
-                :src="card.img"
-                alt=""
-                class="h-40 object-contain"
-              />
+            <!-- CONTENT -->
+            <div class="flex flex-col justify-between flex-1 p-4">
+              <!-- TOP -->
+              <div>
+                <h2 class="text-[25px] font-bold line-clamp-1">
+                  {{ card.title }}
+                </h2>
+                <!-- <p class="text-sm text-gray-500 mt-1">
+                  {{ card.subtitle || "Builder Name · Location" }}
+                </p> -->
+
+                <!-- INFO ROWS -->
+                <div class="mt-4 space-y-2 text-sm">
+                  <div class="flex justify-between">
+                    <span class="text-gray-500">Price</span>
+                    <span class="font-medium">{{ card.price }}</span>
+                  </div>
+
+                  <div class="flex justify-between">
+                    <span class="text-gray-500">Configuration</span>
+                    <span class="font-medium">2 & 3 BHK</span>
+                  </div>
+
+                  <div class="flex justify-between">
+                    <span class="text-gray-500">Area</span>
+                    <span class="font-medium">528 - 1610 sqft</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- BOTTOM -->
+              <div class="mt-4 pt-3 border-t">
+                <!-- <span
+                  class="text-xs bg-green-500 text-white px-2 py-1 rounded-full"
+                >
+                  {{ card.status || "Ready" }}
+                </span> -->
+
+                <div class="flex justify-between gap-2">
+                  <button
+                    class="text-sm border px-3 py-1.5 rounded-md hover:bg-gray-100 w-full"
+                  >
+                    Brochure
+                  </button>
+                  <button
+                    class="text-sm bg-black text-white px-3 py-1.5 rounded-md w-full"
+                  >
+                    Contact
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </SwiperSlide>

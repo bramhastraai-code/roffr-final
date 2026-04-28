@@ -47,13 +47,13 @@ onUnmounted(() => { if (ctx) ctx.kill(); });
 
 <template>
   <section ref="sectionRef" class="hero-wrapper">
-    <div class="max-w-[1400px] mx-auto px-6 lg:px-12 py-16 lg:py-28 flex flex-col lg:flex-row items-center gap-16 lg:gap-24">
+    <div class="max-w-7xl mx-auto px-4 2xl:px-0 py-10 flex flex-col lg:flex-row items-center gap-16 mt-10">
       
       <!-- Left Content -->
-      <div class="loan-content w-full lg:w-1/2 flex flex-col items-start gap-8">
+      <div class="loan-content w-full lg:w-1/2 flex flex-col items-start gap-4">
         <div class="tag-label">INTELLIGENT CAPITAL</div>
 
-        <h1 class="main-title">
+        <h1 class="main-title leading-tight">
           The Blueprint of<br />
           Financial Freedom.
         </h1>
@@ -154,7 +154,6 @@ onUnmounted(() => { if (ctx) ctx.kill(); });
   font-size: clamp(2.5rem, 6vw, 4.25rem);
   font-weight: 800;
   color: #0c1c28;
-  line-height: 1.05;
 }
 
 .sub-desc {

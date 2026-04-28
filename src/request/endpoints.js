@@ -17,7 +17,8 @@ const endpoints = {
   deleteCustomer: "/customers/customer", // Appending ID in usage
   getCustomerProfile: "/customers/customer",
   projectCities: "/projects/unique-cities",
-  property: "/properties",
+  property: "/properties/roffer",
+  broker: "/users",
   propertyById: "/properties/property",
   amenity: "/amenities/amenity-list",
   login: "/customers/login", // Keeping for reference, though unused

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, watch, onMounted, onBeforeUnmount, computed } from "vue";
-import { useProjectStore } from "@/stores/projectStore";
+import { usePropertyStore } from "@/stores/propertyStore";
 import { storeToRefs } from "pinia";
 import { useRouter, useRoute } from "vue-router";
 import { useSearchStore } from "@/stores/SearchStore";
@@ -21,14 +21,13 @@ const {
 
 const route = useRoute();
 
-const projectStore = useProjectStore();
+const propertyStore = usePropertyStore();
 const {
-  projectPropertyListData,
-  uniqueCitiesData,
+  propertyData,
   pageNumber,
   totalpages,
   pageSize,
-} = storeToRefs(projectStore);
+} = storeToRefs(propertyStore);
 
 const searchStore = useSearchStore();
 const { searchSuggestionData, term } = storeToRefs(searchStore);
@@ -96,9 +95,9 @@ onMounted(async () => {
     if (route.query.q) searchInput.value = route.query.q;
     await performSearch();
   } else {
-    await projectStore.getProjectPropertyList();
+    await propertyStore.getProperty();
   }
-  await projectStore.getProjectCities();
+  await propertyStore.getProperty();
 });
 
 const formatINR = (num) => `₹ ${Number(num || 0).toLocaleString("en-IN")}`;

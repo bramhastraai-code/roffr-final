@@ -4,6 +4,7 @@ import GsapFade from '@/components/GsapFade.vue'
 import HeroSection from '@/sections/aboutSection2/HeroSection.vue'
 import PowerSection from '@/sections/aboutSection2/PowerSection.vue'
 import WhyChooseSection from '@/sections/aboutSection2/WhyChooseSection.vue'
+import TheCorePillars from '@/sections/aboutSection2/The Core Pillars.vue';
 </script>
 
 <template>
@@ -17,7 +18,7 @@ import WhyChooseSection from '@/sections/aboutSection2/WhyChooseSection.vue'
     </GsapFade>
 
     <GsapFade direction="bottom" :duration="0.7" :triggerOffset="120">
-      <WhyChooseSection />
+      <TheCorePillars />
     </GsapFade>
 
   </main>

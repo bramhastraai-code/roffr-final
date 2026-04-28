@@ -22,6 +22,8 @@ import CorporateView from '@/views/CorporateView.vue'
 import GroupBuyView from '@/views/GroupBuyView.vue'
 import ProjectView2 from '@/views/ProjectView2.vue'
 import PropertiesView2 from '@/views/PropertiesView2.vue'
+import BrokerListView from '@/views/BrokerListView.vue'
+import BrokerDetailsView from '@/views/BrokerDetailsView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -55,6 +57,16 @@ const router = createRouter({
           name: "contact",
           path: "/contact",
           component: ContactusView
+        },
+        {
+          name: "broker-list",
+          path: "/broker-list",
+          component: BrokerListView
+        },
+        {
+          name: "broker-details",
+          path: "/broker-details/:id",
+          component: BrokerDetailsView
         },
         {
           name: "project-details",

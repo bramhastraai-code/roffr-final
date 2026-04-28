@@ -87,6 +87,7 @@ export const usePropertyStore = defineStore("property", () => {
     propertyData,
     totalpages,
     getPropertyById,
+    getProperty,
     specificPropertyDetails,
     propertyListData,
     pageNumber,
