@@ -1,19 +1,100 @@
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount, computed } from "vue";
-import { RouterLink } from "vue-router";
+import { ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 import { useRouter } from "vue-router";
+import { storeToRefs } from "pinia";
 import { useSearchStore } from "@/stores/SearchStore";
+import { useProjectStore } from "@/stores/projectStore";
+import { debounce } from "@/utils/debounce";
+
+const router = useRouter();
+
 const searchStore = useSearchStore();
 const { searchSuggestionData, term } = storeToRefs(searchStore);
 
-import { storeToRefs } from "pinia";
-import { debounce } from "@/utils/debounce";
+const projectStore = useProjectStore();
+const { uniqueCitiesData } = storeToRefs(projectStore);
+
+// Reactive UI state — these were referenced in the template but never declared.
+const containerRef = ref(null);
+const searchInput = ref("");
+const selectedCity = ref("");
+const cityDropdownOpen = ref(false);
+const suggestionsVisible = ref(false);
 
 const suggestionsList = computed(() =>
   Array.isArray(searchSuggestionData.value)
     ? searchSuggestionData.value
     : searchSuggestionData.value?.data || [],
 );
+
+// Fetch suggestions on debounced typing.
+const fetchSuggestions = debounce(async () => {
+  const t = (searchInput.value || "").trim();
+  if (t.length < 2) {
+    searchSuggestionData.value = [];
+    suggestionsVisible.value = false;
+    return;
+  }
+  term.value = t;
+  await searchStore.getSearchSuggestion();
+  suggestionsVisible.value = true;
+}, 300);
+
+watch(searchInput, () => {
+  fetchSuggestions();
+});
+
+const onCitySelect = (city) => {
+  selectedCity.value = city;
+  cityDropdownOpen.value = false;
+};
+
+const goToResults = () => {
+  const query = {};
+  if (searchInput.value?.trim()) query.q = searchInput.value.trim();
+  if (selectedCity.value) query.city = selectedCity.value;
+  suggestionsVisible.value = false;
+  router.push({ path: "/project", query });
+};
+
+const onSearchButtonClicked = () => {
+  goToResults();
+};
+
+const onSuggestionClick = (suggestion) => {
+  if (!suggestion) return;
+  // If the suggestion has a routable id, jump straight to the detail page.
+  if (suggestion.type === "project" && suggestion._id) {
+    router.push(`/project-details/${suggestion._id}`);
+    return;
+  }
+  if (suggestion.type === "property" && suggestion._id) {
+    router.push(`/property-details/${suggestion._id}`);
+    return;
+  }
+  // Fallback — push the suggestion title into the search and run a list query.
+  searchInput.value = suggestion.title || searchInput.value;
+  goToResults();
+};
+
+// Click-outside closes both dropdowns.
+const handleClickOutside = (e) => {
+  if (containerRef.value && !containerRef.value.contains(e.target)) {
+    suggestionsVisible.value = false;
+    cityDropdownOpen.value = false;
+  }
+};
+
+onMounted(() => {
+  document.addEventListener("click", handleClickOutside);
+  if (!uniqueCitiesData.value?.length) {
+    projectStore.getProjectCities();
+  }
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener("click", handleClickOutside);
+});
 </script>
 
 <template>
@@ -92,6 +173,7 @@ const suggestionsList = computed(() =>
             class="w-full outline-none px-1.5 sm:px-2 text-gray-600 placeholder-gray-400 text-xs sm:text-sm md:text-base"
             placeholder="Search for locations, Developers, Projects"
             autocomplete="off"
+            @focus="suggestionsVisible = !!suggestionsList.length"
             @keyup.enter="onSearchButtonClicked"
           />
 
@@ -106,15 +188,26 @@ const suggestionsList = computed(() =>
           <!-- Suggestions dropdown -->
           <ul
             v-if="suggestionsVisible && suggestionsList.length"
-            class="absolute left-0 right-0 top-full mt-2 max-h-60 overflow-auto bg-white text-black rounded-2xl shadow-lg border border-gray-200 z-50 text-xs sm:text-sm"
+            class="absolute left-0 right-0 top-full mt-2 max-h-72 overflow-auto bg-white text-black rounded-2xl shadow-lg border border-gray-200 z-50 text-xs sm:text-sm"
           >
             <li
               v-for="(suggestion, index) in suggestionsList"
               :key="suggestion._id || index"
-              class="px-3 sm:px-4 py-2 hover:bg-gray-100 cursor-pointer"
-              @click="onSuggestionClick(suggestion?._id)"
+              class="px-3 sm:px-4 py-2 hover:bg-gray-100 cursor-pointer flex items-center justify-between gap-2"
+              @click="onSuggestionClick(suggestion)"
             >
-              {{ suggestion.title }}
+              <div class="text-left">
+                <div class="font-medium">{{ suggestion.title }}</div>
+                <div v-if="suggestion.subtitle" class="text-[11px] text-gray-500">
+                  {{ suggestion.subtitle }}
+                </div>
+              </div>
+              <span
+                v-if="suggestion.type"
+                class="text-[10px] uppercase px-2 py-0.5 rounded-full bg-orange-50 text-orange-600 border border-orange-200"
+              >
+                {{ suggestion.type }}
+              </span>
             </li>
           </ul>
         </div>

@@ -1,58 +1,47 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { onMounted, computed } from "vue";
+import { useRouter } from "vue-router";
 import { useProjectStore } from "@/stores/projectStore";
 import { storeToRefs } from "pinia";
 import { Swiper, SwiperSlide } from "swiper/vue";
 import "swiper/css";
 
+const router = useRouter();
 const projectStore = useProjectStore();
-onMounted(async () => {
-  await projectStore.getProjectAffordiablityData();
-});
-
 const { projectAffordablityData } = storeToRefs(projectStore);
 
-const activeTab = ref("under");
+const cards = computed(() => {
+  const list = Array.isArray(projectAffordablityData.value)
+    ? projectAffordablityData.value
+    : [];
+  return list.map((p) => ({
+    id: p?._id || p?.id,
+    name: p?.projectName || "Project",
+    image: p?.propertyPictures?.[0] || p?.floorPlan?.[0] || "",
+  }));
+});
 
-// Data like your UI (possession-based cards)
-const data = {
-  under: [
-    {
-      title: "Possession in '27",
-      count: "544+ projects",
-      bg: "bg-[#E8DFC8]",
-    },
-    {
-      title: "Possession in '28",
-      count: "382+ projects",
-      bg: "bg-[#EADDE3]",
-    },
-    {
-      title: "Possession in '29",
-      count: "233+ projects",
-      bg: "bg-[#DCEBE3]",
-    },
-    {
-      title: "Possession Beyond '29",
-      count: "287+ projects",
-      bg: "bg-[#DCE3EC]",
-    },
-    {
-      title: "Possession in '30",
-      count: "190+ projects",
-      bg: "bg-[#F1E4D3]",
-    },
-  ],
+const goToProject = (id) => {
+  if (!id) return;
+  router.push(`/project-details/${id}`);
 };
 
-const activeCards = computed(() => data[activeTab.value] || []);
+onMounted(async () => {
+  if (!projectAffordablityData.value || projectAffordablityData.value.length === 0) {
+    await projectStore.getProjectAffordiablityData();
+  }
+});
 </script>
 
 <template>
   <section class="max-w-7xl mx-auto py-10 px-4 2xl:px-0">
     <h1 class="title-text text-center">Projects by Budget</h1>
-    <!-- Swiper -->
-    <div class="mt-6">
+
+    <div v-if="cards.length === 0" class="text-center mt-10 text-gray-500">
+      No budget-sorted projects to show right now.
+    </div>
+
+    <div v-else class="mt-6">
       <Swiper
         :space-between="20"
         :slides-per-view="4"
@@ -63,27 +52,28 @@ const activeCards = computed(() => data[activeTab.value] || []);
           1280: { slidesPerView: 4 },
         }"
       >
-        <SwiperSlide
-          v-for="(card, index) in projectAffordablityData"
-          :key="index"
-        >
+        <SwiperSlide v-for="card in cards" :key="card.id">
           <div
-            class="rounded-2xl h-[420px] overflow-hidden relative shadow-sm border text-white"
+            class="rounded-2xl h-[420px] overflow-hidden relative shadow-sm border text-white cursor-pointer"
+            @click="goToProject(card.id)"
           >
-            <!-- Background Image -->
             <img
-              :src="card?.propertyPictures[0]"
+              v-if="card.image"
+              :src="card.image"
+              :alt="card.name"
               class="absolute inset-0 w-full h-full object-cover"
             />
+            <div
+              v-else
+              class="absolute inset-0 bg-gradient-to-br from-gray-700 to-gray-900"
+            ></div>
 
-            <!-- Dark Overlay -->
             <div class="absolute inset-0 bg-black/50"></div>
 
-            <!-- Content -->
             <div class="relative z-10 p-5 flex flex-col justify-between h-full">
               <div>
-                <h2 class="text-[24px] font-semibold">
-                  {{ card?.projectName }}
+                <h2 class="text-[24px] font-semibold line-clamp-3">
+                  {{ card.name }}
                 </h2>
               </div>
             </div>

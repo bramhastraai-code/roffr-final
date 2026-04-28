@@ -1,17 +1,27 @@
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
 import { useProjectStore } from "@/stores/projectStore";
+import { useMyDashboardStore } from "@/stores/myDashboardStore";
 import { storeToRefs } from "pinia";
 import Navbar from "@/components/Navbar.vue";
 
 const router = useRouter();
 const authStore = useAuthStore();
-const { currentUserData } = storeToRefs(authStore);
+const { currentUserData, user } = storeToRefs(authStore);
 
 const projectStore = useProjectStore();
 const { wishlistData } = storeToRefs(projectStore);
+
+const dashboardStore = useMyDashboardStore();
+const {
+  myProperties,
+  myProjects,
+  mySiteVisits,
+  loading: dashboardLoading,
+  stats: liveStats,
+} = storeToRefs(dashboardStore);
 
 const activeTab = ref("Dashboard");
 
@@ -19,6 +29,7 @@ const menuItems = [
   { name: "Dashboard", icon: "pi pi-th-large" },
   { name: "Profile", icon: "pi pi-user" },
   { name: "My project", icon: "pi pi-building" },
+  { name: "My Properties", icon: "pi pi-home" },
   { name: "Favorites", icon: "pi pi-heart" },
   { name: "My Visits", icon: "pi pi-map-marker" },
   { name: "Feedback", icon: "pi pi-thumbs-up" },
@@ -29,12 +40,12 @@ const handleLogout = () => {
   router.push("/");
 };
 
-// Mock data for dashboard
-const stats = {
-  viewedProperties: 12,
-  active: 2,
-  siteVisits: 4,
-};
+// Real, reactive dashboard stats — derived from store data
+const stats = computed(() => ({
+  viewedProperties: wishlistData.value?.length ?? 0,
+  active: liveStats.value.activeListings,
+  siteVisits: liveStats.value.siteVisits,
+}));
 
 const fileInput = ref(null);
 const profileForm = ref({
@@ -47,34 +58,66 @@ const profileForm = ref({
 });
 
 const showAddPropertyForm = ref(false);
-const propertyForm = ref({
-  name: "",
+const projectForm = ref({
+  projectName: "",
+  description: "",
   location: "",
-  price: "",
-  type: "",
-  size: "",
+  city: "",
+  builderName: "",
+  minPrice: "",
+  maxPrice: "",
 });
 
-const customerId = ref("")
+const showAddListingForm = ref(false);
+const listingForm = ref({
+  title: "",
+  city: "",
+  locality: "",
+  state: "",
+  bhk: "",
+  unitType: "",
+  areaValue: "",
+  areaUnit: "sqft",
+});
+
+const showSiteVisitModal = ref(false);
+const visitForm = ref({
+  projectId: "",
+  scheduledDate: "",
+  customerName: "",
+  phoneNumber: "",
+});
+
+const submitting = ref(false);
+const formError = ref("");
+const customerId = ref("");
 
 onMounted(async () => {
-  customerId.value = localStorage.getItem("customerId");
-  await authStore.getCurrentUserData(customerId.value);
-  projectStore.getWishlist(customerId.value);
+  customerId.value =
+    authStore.user?._id || localStorage.getItem("customerId") || "";
 
+  // Auth gate FIRST so a stale "undefined" customerId doesn't trigger a 404 spiral.
   if (!authStore.isAuthenticated) {
     router.push("/login");
-  } else {
-    // Initialize profile form with user data
-    profileForm.value = {
-      fullName: currentUserData.value?.name || "",
-      email: currentUserData.value?.email || "",
-      mobile: currentUserData.value?.phoneNumber || "",
-      pincode: currentUserData.value?.pincode || "",
-      city: currentUserData.value?.city || "",
-      state: currentUserData.value?.state || "",
-    };
+    return;
   }
+
+  if (customerId.value && customerId.value !== "undefined") {
+    await Promise.allSettled([
+      authStore.getCurrentUserData(customerId.value),
+      projectStore.getWishlist(customerId.value),
+      dashboardStore.loadAll(customerId.value),
+    ]);
+  }
+
+  profileForm.value = {
+    fullName: currentUserData.value?.name || "",
+    email: currentUserData.value?.email || "",
+    mobile: currentUserData.value?.phoneNumber || "",
+    pincode: currentUserData.value?.pincode || "",
+    city: currentUserData.value?.city || "",
+    state: currentUserData.value?.state || "",
+  };
 });
 
 const triggerFileInput = () => {
@@ -106,18 +149,146 @@ const saveProfile = () => {
   }
 };
 
-const addProperty = () => {
-  // Placeholder for adding property logic
-  console.log("Adding project:", propertyForm.value);
-  alert("Project added successfully! (Mock)");
-  showAddPropertyForm.value = false;
-  propertyForm.value = {
-    name: "",
-    location: "",
-    price: "",
-    type: "",
-    size: "",
+const addProject = async () => {
+  if (!customerId.value) {
+    formError.value = "Please log in again.";
+    return;
+  }
+  if (!projectForm.value.projectName.trim()) {
+    formError.value = "Project name is required.";
+    return;
+  }
+
+  submitting.value = true;
+  formError.value = "";
+  try {
+    await dashboardStore.createMyProject(customerId.value, {
+      projectName: projectForm.value.projectName.trim(),
+      description: projectForm.value.description,
+      builderName: projectForm.value.builderName,
+      glocation: projectForm.value.location,
+      venue: projectForm.value.city,
+      minPrice: Number(projectForm.value.minPrice) || 0,
+      maxPrice: Number(projectForm.value.maxPrice) || 0,
+    });
+    showAddPropertyForm.value = false;
+    projectForm.value = {
+      projectName: "",
+      description: "",
+      location: "",
+      city: "",
+      builderName: "",
+      minPrice: "",
+      maxPrice: "",
+    };
+    alert("Project listed successfully");
+  } catch (err) {
+    formError.value =
+      err?.response?.data?.message || "Failed to list project.";
+  } finally {
+    submitting.value = false;
+  }
+};
+
+const addListing = async () => {
+  if (!customerId.value) {
+    formError.value = "Please log in again.";
+    return;
+  }
+  if (!listingForm.value.title.trim()) {
+    formError.value = "Title is required.";
+    return;
+  }
+
+  submitting.value = true;
+  formError.value = "";
+  try {
+    await dashboardStore.createMyProperty(customerId.value, {
+      title: listingForm.value.title.trim(),
+      location: {
+        city: listingForm.value.city,
+        locality: listingForm.value.locality,
+        state: listingForm.value.state,
+      },
+      property_details: {
+        unit_type: listingForm.value.unitType,
+        bhk: listingForm.value.bhk,
+        area: {
+          usable_area: {
+            value: Number(listingForm.value.areaValue) || undefined,
+            unit: listingForm.value.areaUnit,
+          },
+        },
+      },
+    });
+    showAddListingForm.value = false;
+    listingForm.value = {
+      title: "",
+      city: "",
+      locality: "",
+      state: "",
+      bhk: "",
+      unitType: "",
+      areaValue: "",
+      areaUnit: "sqft",
+    };
+    alert("Property listed successfully");
+  } catch (err) {
+    formError.value =
+      err?.response?.data?.message || "Failed to list property.";
+  } finally {
+    submitting.value = false;
+  }
+};
+
+const removeMyProject = async (projectId) => {
+  if (!confirm("Remove this project listing?")) return;
+  await dashboardStore.deleteMyProject(customerId.value, projectId);
+};
+
+const removeMyProperty = async (propertyId) => {
+  if (!confirm("Remove this property listing?")) return;
+  await dashboardStore.deleteMyProperty(customerId.value, propertyId);
+};
+
+const openBookVisit = (projectId = "") => {
+  visitForm.value = {
+    projectId,
+    scheduledDate: "",
+    customerName: currentUserData.value?.name || "",
+    phoneNumber: currentUserData.value?.phoneNumber || "",
   };
+  formError.value = "";
+  showSiteVisitModal.value = true;
+};
+
+const submitSiteVisit = async () => {
+  if (!visitForm.value.projectId) {
+    formError.value = "Please choose a project.";
+    return;
+  }
+  if (!visitForm.value.scheduledDate) {
+    formError.value = "Please pick a date.";
+    return;
+  }
+
+  submitting.value = true;
+  formError.value = "";
+  try {
+    await dashboardStore.bookSiteVisit(customerId.value, {
+      projectId: visitForm.value.projectId,
+      scheduledDate: visitForm.value.scheduledDate,
+      customerName: visitForm.value.customerName,
+      phoneNumber: visitForm.value.phoneNumber,
+    });
+    showSiteVisitModal.value = false;
+    alert("Site visit booked.");
+  } catch (err) {
+    formError.value =
+      err?.response?.data?.message || "Failed to book site visit.";
+  } finally {
+    submitting.value = false;
+  }
 };
 
 const goToProject = (id) => {
@@ -213,7 +384,7 @@ const submitFeedback = () => {
 
           <div class="text-center mt-4">
             <h2 class="text-3xl font-marcellus font-bold text-gray-900">
-              {{ currentUserData?.name || "Vishal B" }}
+              {{ currentUserData?.name || user?.name || "Welcome" }}
             </h2>
           </div>
         </div>
@@ -299,7 +470,7 @@ const submitFeedback = () => {
                       <p
                         class="font-mono text-xl tracking-widest text-shadow-sm"
                       >
-                        {{ currentUserData?.phoneNumber || "Adit72281" }}
+                        {{ currentUserData?.phoneNumber || user?.phoneNumber || "—" }}
                       </p>
                     </div>
 
@@ -311,7 +482,7 @@ const submitFeedback = () => {
                         <p
                           class="font-bold tracking-wide uppercase text-lg text-shadow-sm"
                         >
-                          {{ user?.name || "ADITYA YELNURE" }}
+                          {{ (currentUserData?.name || user?.name || "—").toUpperCase() }}
                         </p>
                       </div>
                       <p class="font-bold italic opacity-90">Roffr SMART</p>
@@ -484,7 +655,7 @@ const submitFeedback = () => {
             <div v-if="activeTab === 'My project'" class="relative h-full">
               <!-- Empty State -->
               <div
-                v-if="!showAddPropertyForm"
+                v-if="!showAddPropertyForm && myProjects.length === 0"
                 class="absolute inset-0 flex flex-col items-center justify-center text-center px-8"
               >
                 <div class="mb-6">
@@ -509,6 +680,59 @@ const submitFeedback = () => {
                 </button>
               </div>
 
+              <!-- Listed projects -->
+              <div
+                v-else-if="!showAddPropertyForm"
+                class="mt-32 md:mt-24"
+              >
+                <div class="flex justify-between items-center mb-6">
+                  <h3 class="text-2xl font-bold text-gray-900">My Projects</h3>
+                  <button
+                    @click="showAddPropertyForm = true"
+                    class="bg-[#FF5722] text-white font-semibold py-2 px-5 rounded-lg shadow hover:bg-[#F4511E] text-sm"
+                  >
+                    + Add project
+                  </button>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div
+                    v-for="proj in myProjects"
+                    :key="proj._id || proj.id"
+                    class="rounded-2xl border bg-white p-4 shadow-sm flex flex-col gap-1"
+                  >
+                    <h4 class="font-semibold text-gray-900">
+                      {{ proj.projectName }}
+                    </h4>
+                    <p class="text-xs text-gray-500">
+                      {{ proj.venue || proj.glocation || "—" }}
+                    </p>
+                    <p class="text-xs text-gray-600 line-clamp-2">
+                      {{ proj.description }}
+                    </p>
+                    <p class="text-sm font-semibold mt-1">
+                      ₹ {{ Number(proj.minPrice || 0).toLocaleString("en-IN") }}
+                      <span v-if="proj.maxPrice" class="text-xs text-gray-400 font-normal">
+                        – ₹ {{ Number(proj.maxPrice).toLocaleString("en-IN") }}
+                      </span>
+                    </p>
+                    <div class="flex gap-2 mt-2">
+                      <button
+                        @click="openBookVisit(proj._id || proj.id)"
+                        class="text-xs px-3 py-1 rounded-full bg-orange-50 text-[#FF5722] border border-orange-200"
+                      >
+                        Book site visit
+                      </button>
+                      <button
+                        @click="removeMyProject(proj._id || proj.id)"
+                        class="text-xs px-3 py-1 rounded-full bg-red-50 text-red-500 border border-red-200"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <!-- Add Project Form -->
               <div v-else class="mt-32 md:mt-24">
                 <div class="max-w-3xl mx-auto">
@@ -525,82 +749,102 @@ const submitFeedback = () => {
                   </div>
 
                   <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <!-- Project Name -->
                     <div class="space-y-2">
                       <label class="text-gray-400 text-sm font-medium"
                         >Project Name<span class="text-red-500">*</span></label
                       >
                       <input
-                        v-model="propertyForm.name"
+                        v-model="projectForm.projectName"
                         type="text"
                         class="w-full bg-transparent border-b border-gray-200 py-2 text-gray-900 focus:outline-none focus:border-[#FF5722] transition-colors"
                         placeholder="Enter project name"
                       />
                     </div>
 
-                    <!-- Location -->
                     <div class="space-y-2">
                       <label class="text-gray-400 text-sm font-medium"
-                        >Location<span class="text-red-500">*</span></label
+                        >Builder name</label
                       >
                       <input
-                        v-model="propertyForm.location"
+                        v-model="projectForm.builderName"
                         type="text"
                         class="w-full bg-transparent border-b border-gray-200 py-2 text-gray-900 focus:outline-none focus:border-[#FF5722] transition-colors"
-                        placeholder="Enter location"
+                        placeholder="Enter builder name"
                       />
                     </div>
 
-                    <!-- Price -->
                     <div class="space-y-2">
                       <label class="text-gray-400 text-sm font-medium"
-                        >Price<span class="text-red-500">*</span></label
+                        >Location</label
                       >
                       <input
-                        v-model="propertyForm.price"
+                        v-model="projectForm.location"
                         type="text"
                         class="w-full bg-transparent border-b border-gray-200 py-2 text-gray-900 focus:outline-none focus:border-[#FF5722] transition-colors"
-                        placeholder="Enter price"
+                        placeholder="Enter address / google location"
                       />
                     </div>
 
-                    <!-- Type -->
                     <div class="space-y-2">
                       <label class="text-gray-400 text-sm font-medium"
-                        >Project Type<span class="text-red-500">*</span></label
-                      >
-                      <select
-                        v-model="propertyForm.type"
-                        class="w-full bg-transparent border-b border-gray-200 py-2 text-gray-900 focus:outline-none focus:border-[#FF5722] transition-colors"
-                      >
-                        <option value="" disabled selected>Select type</option>
-                        <option value="Apartment">Apartment</option>
-                        <option value="House">House</option>
-                        <option value="Plot">Plot</option>
-                        <option value="Commercial">Commercial</option>
-                      </select>
-                    </div>
-
-                    <!-- Size -->
-                    <div class="space-y-2">
-                      <label class="text-gray-400 text-sm font-medium"
-                        >Size (Sq. ft)<span class="text-red-500">*</span></label
+                        >City</label
                       >
                       <input
-                        v-model="propertyForm.size"
+                        v-model="projectForm.city"
                         type="text"
                         class="w-full bg-transparent border-b border-gray-200 py-2 text-gray-900 focus:outline-none focus:border-[#FF5722] transition-colors"
-                        placeholder="Enter size"
+                        placeholder="Enter city"
                       />
+                    </div>
+
+                    <div class="space-y-2">
+                      <label class="text-gray-400 text-sm font-medium"
+                        >Min price (₹)</label
+                      >
+                      <input
+                        v-model="projectForm.minPrice"
+                        type="number"
+                        class="w-full bg-transparent border-b border-gray-200 py-2 text-gray-900 focus:outline-none focus:border-[#FF5722] transition-colors"
+                        placeholder="0"
+                      />
+                    </div>
+
+                    <div class="space-y-2">
+                      <label class="text-gray-400 text-sm font-medium"
+                        >Max price (₹)</label
+                      >
+                      <input
+                        v-model="projectForm.maxPrice"
+                        type="number"
+                        class="w-full bg-transparent border-b border-gray-200 py-2 text-gray-900 focus:outline-none focus:border-[#FF5722] transition-colors"
+                        placeholder="0"
+                      />
+                    </div>
+
+                    <div class="space-y-2 md:col-span-2">
+                      <label class="text-gray-400 text-sm font-medium"
+                        >Description</label
+                      >
+                      <textarea
+                        v-model="projectForm.description"
+                        rows="3"
+                        class="w-full bg-transparent border border-gray-200 rounded-lg py-2 px-3 text-gray-900 focus:outline-none focus:border-[#FF5722] transition-colors"
+                        placeholder="What makes this project stand out?"
+                      ></textarea>
                     </div>
                   </div>
 
-                  <div class="mt-12 flex justify-center">
+                  <p v-if="formError" class="text-red-500 text-sm mt-4">
+                    {{ formError }}
+                  </p>
+
+                  <div class="mt-10 flex justify-center">
                     <button
-                      @click="addProperty"
-                      class="bg-[#FF5722] text-white font-bold py-3 px-12 rounded-lg shadow-lg hover:bg-[#F4511E] transition-all transform hover:-translate-y-0.5"
+                      @click="addProject"
+                      :disabled="submitting"
+                      class="bg-[#FF5722] text-white font-bold py-3 px-12 rounded-lg shadow-lg hover:bg-[#F4511E] transition-all transform hover:-translate-y-0.5 disabled:opacity-60"
                     >
-                      Submit Project
+                      {{ submitting ? "Submitting…" : "Submit Project" }}
                     </button>
                   </div>
                 </div>
@@ -689,9 +933,7 @@ const submitFeedback = () => {
 
             <!-- My Visits Content -->
             <div v-if="activeTab === 'My Visits'" class="relative h-full">
-              <div
-                class="absolute inset-0 flex flex-col items-center justify-center text-center px-8"
-              >
+              <div v-if="!mySiteVisits.length" class="absolute inset-0 flex flex-col items-center justify-center text-center px-8">
                 <div class="mb-6">
                   <img
                     src="/images/dashboard/empty-property.png"
@@ -703,15 +945,192 @@ const submitFeedback = () => {
                   No Site Visits Yet
                 </h3>
                 <p class="text-gray-500 mb-8 font-outfit text-base">
-                  You do not have visited Any property site yet
+                  You haven't booked any site visits yet
                 </p>
 
+                <div class="flex gap-3">
+                  <button
+                    @click="openBookVisit('')"
+                    class="bg-[#FF5722] text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-[#F4511E] transition-all transform hover:-translate-y-0.5 font-outfit text-sm tracking-wide"
+                  >
+                    Book a Site Visit
+                  </button>
+                  <button
+                    @click="router.push('/project')"
+                    class="border border-[#FF5722] text-[#FF5722] font-bold py-3 px-6 rounded-lg hover:bg-orange-50 transition-all font-outfit text-sm tracking-wide"
+                  >
+                    Browse Projects
+                  </button>
+                </div>
+              </div>
+
+              <div v-else class="mt-32 md:mt-24">
+                <div class="flex justify-between items-center mb-6">
+                  <h3 class="text-2xl font-bold text-gray-900">My Site Visits</h3>
+                  <button
+                    @click="openBookVisit('')"
+                    class="bg-[#FF5722] text-white font-semibold py-2 px-5 rounded-lg shadow hover:bg-[#F4511E] text-sm"
+                  >
+                    + Book another
+                  </button>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div
+                    v-for="visit in mySiteVisits"
+                    :key="visit._id || visit.id"
+                    class="rounded-2xl border bg-white p-4 shadow-sm flex flex-col gap-1"
+                  >
+                    <p class="text-xs uppercase text-gray-500">
+                      {{ visit.status || "Pending" }}
+                    </p>
+                    <h4 class="font-semibold text-gray-900">
+                      {{ visit.projectName || visit.projectId?.projectName || "Project" }}
+                    </h4>
+                    <p class="text-xs text-gray-500">
+                      {{
+                        visit.scheduledDate
+                          ? new Date(visit.scheduledDate).toLocaleString()
+                          : "—"
+                      }}
+                    </p>
+                    <p class="text-xs text-gray-500">
+                      {{ visit.customerName }} · {{ visit.phoneNumber }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- My Properties Content (P2P listings) -->
+            <div v-if="activeTab === 'My Properties'" class="relative h-full">
+              <div v-if="!showAddListingForm && myProperties.length === 0" class="absolute inset-0 flex flex-col items-center justify-center text-center px-8">
+                <div class="mb-6">
+                  <img
+                    src="/images/dashboard/empty-property.png"
+                    alt="No Property"
+                    class="w-28 h-28 opacity-90"
+                  />
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 mb-2 font-outfit">
+                  No Property Listings Yet
+                </h3>
+                <p class="text-gray-500 mb-8 font-outfit text-base">
+                  List a property and reach buyers on Roffr
+                </p>
                 <button
-                  @click="router.push('/project')"
-                  class="bg-[#FF5722] text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-[#F4511E] transition-all transform hover:-translate-y-0.5 font-outfit text-sm tracking-wide"
+                  @click="showAddListingForm = true"
+                  class="bg-[#FF5722] text-white font-bold py-3 px-8 rounded-lg shadow-md hover:bg-[#F4511E] font-outfit text-sm tracking-wide"
                 >
-                  Book a Site Visit by Exploring Projects Now
+                  List your first property
                 </button>
+              </div>
+
+              <div v-else-if="!showAddListingForm" class="mt-32 md:mt-24">
+                <div class="flex justify-between items-center mb-6">
+                  <h3 class="text-2xl font-bold text-gray-900">My Properties</h3>
+                  <button
+                    @click="showAddListingForm = true"
+                    class="bg-[#FF5722] text-white font-semibold py-2 px-5 rounded-lg shadow hover:bg-[#F4511E] text-sm"
+                  >
+                    + Add property
+                  </button>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div
+                    v-for="prop in myProperties"
+                    :key="prop._id || prop.id"
+                    class="rounded-2xl border bg-white p-4 shadow-sm flex flex-col gap-1"
+                  >
+                    <h4 class="font-semibold text-gray-900">{{ prop.title }}</h4>
+                    <p class="text-xs text-gray-500">
+                      {{ [prop.location?.locality, prop.location?.city, prop.location?.state].filter(Boolean).join(", ") || "—" }}
+                    </p>
+                    <p class="text-xs text-gray-600">
+                      {{ prop.property_details?.unit_type }}
+                      <span v-if="prop.property_details?.bhk"> · {{ prop.property_details.bhk }}</span>
+                      <span v-if="prop.property_details?.area?.usable_area?.value">
+                        · {{ prop.property_details.area.usable_area.value }}
+                        {{ prop.property_details.area.usable_area.unit }}
+                      </span>
+                    </p>
+                    <button
+                      @click="removeMyProperty(prop._id || prop.id)"
+                      class="self-start text-xs px-3 py-1 mt-2 rounded-full bg-red-50 text-red-500 border border-red-200"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Add property form -->
+              <div v-else class="mt-32 md:mt-24">
+                <div class="max-w-3xl mx-auto">
+                  <div class="flex justify-between items-center mb-8">
+                    <h3 class="text-2xl font-bold text-gray-900">Add Property</h3>
+                    <button @click="showAddListingForm = false" class="text-gray-500 hover:text-gray-700">
+                      <i class="pi pi-times text-xl"></i>
+                    </button>
+                  </div>
+
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="space-y-2">
+                      <label class="text-gray-400 text-sm font-medium">Title<span class="text-red-500">*</span></label>
+                      <input v-model="listingForm.title" type="text" class="w-full bg-transparent border-b border-gray-200 py-2" placeholder="e.g. Sky Towers Unit 12B" />
+                    </div>
+                    <div class="space-y-2">
+                      <label class="text-gray-400 text-sm font-medium">BHK</label>
+                      <input v-model="listingForm.bhk" type="text" class="w-full bg-transparent border-b border-gray-200 py-2" placeholder="e.g. 3BHK" />
+                    </div>
+                    <div class="space-y-2">
+                      <label class="text-gray-400 text-sm font-medium">Unit type</label>
+                      <select v-model="listingForm.unitType" class="w-full bg-transparent border-b border-gray-200 py-2">
+                        <option value="">Select</option>
+                        <option value="Apartment">Apartment</option>
+                        <option value="Villa">Villa</option>
+                        <option value="Studio">Studio</option>
+                        <option value="Plot">Plot</option>
+                      </select>
+                    </div>
+                    <div class="space-y-2">
+                      <label class="text-gray-400 text-sm font-medium">City</label>
+                      <input v-model="listingForm.city" type="text" class="w-full bg-transparent border-b border-gray-200 py-2" placeholder="City" />
+                    </div>
+                    <div class="space-y-2">
+                      <label class="text-gray-400 text-sm font-medium">Locality</label>
+                      <input v-model="listingForm.locality" type="text" class="w-full bg-transparent border-b border-gray-200 py-2" placeholder="Locality" />
+                    </div>
+                    <div class="space-y-2">
+                      <label class="text-gray-400 text-sm font-medium">State</label>
+                      <input v-model="listingForm.state" type="text" class="w-full bg-transparent border-b border-gray-200 py-2" placeholder="State" />
+                    </div>
+                    <div class="space-y-2">
+                      <label class="text-gray-400 text-sm font-medium">Area</label>
+                      <input v-model="listingForm.areaValue" type="number" class="w-full bg-transparent border-b border-gray-200 py-2" placeholder="0" />
+                    </div>
+                    <div class="space-y-2">
+                      <label class="text-gray-400 text-sm font-medium">Unit</label>
+                      <select v-model="listingForm.areaUnit" class="w-full bg-transparent border-b border-gray-200 py-2">
+                        <option value="sqft">sqft</option>
+                        <option value="sqm">sqm</option>
+                        <option value="acre">acre</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <p v-if="formError" class="text-red-500 text-sm mt-4">{{ formError }}</p>
+
+                  <div class="mt-10 flex justify-center">
+                    <button
+                      @click="addListing"
+                      :disabled="submitting"
+                      class="bg-[#FF5722] text-white font-bold py-3 px-12 rounded-lg shadow-lg hover:bg-[#F4511E] disabled:opacity-60"
+                    >
+                      {{ submitting ? "Submitting…" : "Submit Property" }}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -800,6 +1219,86 @@ const submitFeedback = () => {
               </button>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Site Visit Booking Modal -->
+    <div
+      v-if="showSiteVisitModal"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      @click.self="showSiteVisitModal = false"
+    >
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-bold text-gray-900">Book a site visit</h3>
+          <button
+            @click="showSiteVisitModal = false"
+            class="text-gray-500 hover:text-gray-700"
+          >
+            <i class="pi pi-times"></i>
+          </button>
+        </div>
+
+        <div class="space-y-4">
+          <div>
+            <label class="text-gray-500 text-xs font-medium">Project</label>
+            <select
+              v-model="visitForm.projectId"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 mt-1 focus:outline-none focus:border-[#FF5722]"
+            >
+              <option value="">Select a project</option>
+              <option
+                v-for="proj in myProjects"
+                :key="proj._id || proj.id"
+                :value="proj._id || proj.id"
+              >
+                {{ proj.projectName }}
+              </option>
+            </select>
+            <p v-if="!myProjects.length" class="text-xs text-gray-400 mt-1">
+              No projects available. Browse projects to find one.
+            </p>
+          </div>
+
+          <div>
+            <label class="text-gray-500 text-xs font-medium">Date & time</label>
+            <input
+              v-model="visitForm.scheduledDate"
+              type="datetime-local"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 mt-1 focus:outline-none focus:border-[#FF5722]"
+            />
+          </div>
+
+          <div>
+            <label class="text-gray-500 text-xs font-medium">Your name</label>
+            <input
+              v-model="visitForm.customerName"
+              type="text"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 mt-1 focus:outline-none focus:border-[#FF5722]"
+              placeholder="Full name"
+            />
+          </div>
+
+          <div>
+            <label class="text-gray-500 text-xs font-medium">Phone</label>
+            <input
+              v-model="visitForm.phoneNumber"
+              type="tel"
+              class="w-full border border-gray-200 rounded-lg px-3 py-2 mt-1 focus:outline-none focus:border-[#FF5722]"
+              placeholder="10-digit mobile"
+            />
+          </div>
+
+          <p v-if="formError" class="text-red-500 text-sm">{{ formError }}</p>
+
+          <button
+            @click="submitSiteVisit"
+            :disabled="submitting"
+            class="w-full bg-[#FF5722] text-white font-bold py-3 rounded-lg hover:bg-[#F4511E] disabled:opacity-60"
+          >
+            {{ submitting ? "Booking…" : "Confirm booking" }}
+          </button>
         </div>
       </div>
     </div>

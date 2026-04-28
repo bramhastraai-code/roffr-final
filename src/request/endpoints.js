@@ -19,9 +19,17 @@ const endpoints = {
   projectCities: "/projects/unique-cities",
   property: "/properties/roffer",
   broker: "/users",
+  builder: "/company",
+  builderById: "/company/company",
   propertyById: "/properties/property",
   amenity: "/amenities/amenity-list",
   login: "/customers/login", // Keeping for reference, though unused
+
+  // Customer-scoped (marketplace P2P listings + bookings)
+  customerProperties: "/properties/customer", // append /:customerId
+  customerProjects: "/projects/customer", // append /:customerId
+  siteVisits: "/site-visits", // POST to create
+  customerSiteVisits: "/site-visits/customer", // append /:customerId
 };
 
 export default endpoints;

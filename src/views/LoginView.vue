@@ -51,74 +51,45 @@ const handleVerify = async () => {
   error.value = "";
   try {
     const result = await authStore.verifyOtp(mobileNumber.value, otpCode.value);
-    console.log("OTP Verification Result:", result);
-
-    if (result.status === 201 || result.success || result.data) {
-      // Store in localStorage AND authStore
-      if (result.data) {
-        localStorage.setItem("customerId", result.data._id);
-        localStorage.setItem("phoneNumber", result.data.phoneNumber);
-        localStorage.setItem("accessToken", result.data.accessToken);
-        localStorage.setItem("refreshToken", result.data.refreshToken);
-        localStorage.setItem("newUser", result.data.newUser);
-      }
+    // authStore.verifyOtp persists session via setSession() on success.
+    if (authStore.isAuthenticated) {
       step.value = 3;
     } else {
-      error.value = result.message || "Invalid OTP. Please try again.";
+      error.value = result?.message || "Invalid OTP. Please try again.";
     }
   } catch (err) {
     console.error("OTP verification error:", err);
-    error.value = err.message || "Invalid OTP. Please try again.";
+    error.value =
+      err?.response?.data?.message || "Invalid OTP. Please try again.";
   } finally {
     loading.value = false;
   }
 };
 
 const handleJoin = async () => {
-  // Validation
   if (!selectedBhk.value) {
     error.value = "Please fill all requirements to join.";
     return;
   }
 
+  loading.value = true;
+  error.value = "";
+
   try {
-    loading.value = true;
-    error.value = "";
+    const customerId =
+      authStore.user?._id || localStorage.getItem("customerId");
 
-    // Get customerId from localStorage
-    const customerId = localStorage.getItem("customerId");
-
-    if (!customerId) {
-      error.value = "Customer ID not found. Please login again.";
-      return;
+    if (customerId) {
+      // Refresh profile in the background; don't block navigation if it fails.
+      authStore.getCurrentUserData(customerId).catch(() => {});
     }
 
-    console.log("Fetching customer data for ID:", customerId);
-
-    // Call getCurrentUserData with customerId
-    await authStore.getCurrentUserData(customerId);
-
-    console.log("Joining with:", {
-      mobile: mobileNumber.value,
-      bhk: selectedBhk.value,
-      area: area.value,
-      price: price.value,
-    });
-
-    // Save requirements to localStorage
     localStorage.setItem(
       "userRequirements",
-      JSON.stringify({
-        bhk: selectedBhk.value,
-        // area: area.value,
-        // price: price.value,
-      })
+      JSON.stringify({ bhk: selectedBhk.value }),
     );
 
     router.push("/");
-  } catch (err) {
-    console.error("Error fetching customer data:", err);
-    error.value = "Failed to fetch customer data. Please try again.";
   } finally {
     loading.value = false;
   }

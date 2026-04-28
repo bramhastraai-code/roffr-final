@@ -2,7 +2,8 @@ import axios from "axios";
 
 // === BASE CONFIG ===
 
-export const BASE_URL = "https://api-chanakya-astra-service.brahmaastra.ai"; // Replace with your real API base URL
+export const BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:3333";
 axios.defaults.baseURL = BASE_URL;
 
 // === MAKE REQUEST FUNCTION ===

@@ -3,6 +3,8 @@ import { makeRequest } from "@/request/request";
 import endpoints from "@/request/endpoints";
 import { ref } from "vue";
 
+const N8N_CHAT_WEBHOOK_URL = import.meta.env.VITE_N8N_CHAT_WEBHOOK_URL;
+
 export const useBotStore = defineStore("bot", () => {
   const isModalOpen = ref(false);
   // Initialize botData (Clean slate on reload)
@@ -30,9 +32,21 @@ export const useBotStore = defineStore("bot", () => {
       sessionId: sessionId
     };
 
+    if (!N8N_CHAT_WEBHOOK_URL) {
+      console.error(
+        "VITE_N8N_CHAT_WEBHOOK_URL is not configured — chatbot disabled.",
+      );
+      botData.value.push({
+        text: "Chat is temporarily unavailable.",
+        from: "bot",
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      });
+      return;
+    }
+
     try {
       const response = await makeRequest(
-        "https://n8n.brahmaastra.ai/webhook/c4db7cb2-ba21-465f-b929-b3f89c1aa4a3/chat",
+        N8N_CHAT_WEBHOOK_URL,
         "POST",
         data,
         {},
