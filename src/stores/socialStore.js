@@ -19,13 +19,21 @@ export const useSocialStore = defineStore("social", () => {
   const commentsByPost = ref({});
   const commentsLoadingByPost = ref({});
 
-  const fetchPosts = async ({ viewerId, viewerType, append = false } = {}) => {
+  const fetchPosts = async ({
+    viewerId,
+    viewerType,
+    authorId,
+    authorType,
+    append = false,
+  } = {}) => {
     loading.value = true;
     error.value = null;
     try {
       const params = { page: page.value, limit: limit.value };
       if (viewerId) params.viewerId = viewerId;
       if (viewerType) params.viewerType = viewerType;
+      if (authorId) params.authorId = authorId;
+      if (authorType) params.authorType = authorType;
 
       const res = await makeRequest(endpoints.social, "GET", {}, {}, params, 0);
       const payload = res?.data ?? {};
@@ -180,11 +188,76 @@ export const useSocialStore = defineStore("social", () => {
     }
   };
 
+  // ---------- Connect requests ----------
+  // Customers see incoming connect requests on their posts; brokers see
+  // their outgoing requests. Both lookups are public on the backend so the
+  // marketplace's no-bearer setup is fine.
+  const connectRequestsByPost = ref({}); // postId -> [requests]
+  const myConnectRequests = ref([]); // for the customer
+
+  const fetchMyConnectRequests = async (customerId) => {
+    if (!customerId) return;
+    try {
+      const res = await makeRequest(
+        `${endpoints.social}/connect-requests/customer/${customerId}`,
+        "GET",
+        {},
+        {},
+        {},
+        0,
+      );
+      const list = Array.isArray(res?.data) ? res.data : [];
+      myConnectRequests.value = list;
+      // Bucket by post for easy lookup on the post card.
+      const byPost = {};
+      for (const r of list) {
+        const k = String(r.postId);
+        byPost[k] = byPost[k] || [];
+        byPost[k].push(r);
+      }
+      connectRequestsByPost.value = byPost;
+      return list;
+    } catch (err) {
+      console.error("fetchMyConnectRequests failed", err);
+      myConnectRequests.value = [];
+      connectRequestsByPost.value = {};
+    }
+  };
+
+  const respondConnectRequest = async (requestId, customerId, status) => {
+    if (!requestId || !customerId) return;
+    const res = await makeRequest(
+      `${endpoints.social}/connect-requests/${requestId}/respond`,
+      "PATCH",
+      { customerId, status },
+      {},
+      {},
+      0,
+    );
+    const updated = res?.data ?? res;
+    // Patch the cached request entry.
+    if (updated?._id) {
+      myConnectRequests.value = myConnectRequests.value.map((r) =>
+        r._id === updated._id ? { ...r, ...updated } : r,
+      );
+      const byPost = { ...connectRequestsByPost.value };
+      Object.keys(byPost).forEach((k) => {
+        byPost[k] = byPost[k].map((r) =>
+          r._id === updated._id ? { ...r, ...updated } : r,
+        );
+      });
+      connectRequestsByPost.value = byPost;
+    }
+    return updated;
+  };
+
   const reset = () => {
     posts.value = [];
     total.value = 0;
     page.value = 1;
     commentsByPost.value = {};
+    connectRequestsByPost.value = {};
+    myConnectRequests.value = [];
   };
 
   return {
@@ -196,6 +269,8 @@ export const useSocialStore = defineStore("social", () => {
     error,
     commentsByPost,
     commentsLoadingByPost,
+    connectRequestsByPost,
+    myConnectRequests,
 
     fetchPosts,
     createPost,
@@ -204,6 +279,8 @@ export const useSocialStore = defineStore("social", () => {
     fetchComments,
     addComment,
     deleteComment,
+    fetchMyConnectRequests,
+    respondConnectRequest,
     reset,
   };
 });

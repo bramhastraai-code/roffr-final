@@ -16,6 +16,7 @@ const {
   error,
   commentsByPost,
   commentsLoadingByPost,
+  connectRequestsByPost,
 } = storeToRefs(socialStore);
 
 const authStore = useAuthStore();
@@ -208,11 +209,45 @@ const timeAgo = (date) => {
 };
 
 onMounted(async () => {
-  await socialStore.fetchPosts({
-    viewerId: me.value.id || undefined,
-    viewerType: me.value.type,
-  });
+  // Marketplace customers only see their own posts in the community feed.
+  // Their posts spread to brokers via the broker dashboard's social view.
+  if (me.value.id) {
+    await Promise.all([
+      socialStore.fetchPosts({
+        viewerId: me.value.id,
+        viewerType: me.value.type,
+        authorId: me.value.id,
+        authorType: me.value.type,
+      }),
+      socialStore.fetchMyConnectRequests(me.value.id),
+    ]);
+  } else {
+    await socialStore.fetchPosts({});
+  }
 });
+
+// Helper used in template: respond to a connect request inline.
+const respondingId = ref("");
+const respondConnect = async (requestId, status) => {
+  if (!me.value.id) {
+    router.push("/login");
+    return;
+  }
+  respondingId.value = requestId;
+  try {
+    await socialStore.respondConnectRequest(requestId, me.value.id, status);
+  } catch (err) {
+    console.error("Connect respond failed", err);
+  } finally {
+    respondingId.value = "";
+  }
+};
+
+const requestsForPost = (postId) =>
+  connectRequestsByPost.value?.[String(postId)] || [];
+
+const pendingRequestCount = (postId) =>
+  requestsForPost(postId).filter((r) => r.status === "pending").length;
 </script>
 
 <template>
@@ -363,7 +398,7 @@ onMounted(async () => {
             />
           </div>
 
-          <footer class="mt-4 flex items-center gap-6 text-xs text-gray-500">
+          <footer class="mt-4 flex items-center gap-6 text-xs text-gray-500 flex-wrap">
             <button
               @click="handleLike(post)"
               class="flex items-center gap-1.5 hover:text-red-500 transition"
@@ -379,7 +414,99 @@ onMounted(async () => {
               <i class="pi pi-comment text-sm"></i>
               {{ post.commentsCount || 0 }} comment{{ post.commentsCount === 1 ? "" : "s" }}
             </button>
+            <span
+              v-if="requestsForPost(post._id).length"
+              class="flex items-center gap-1.5 text-orange-600"
+            >
+              <i class="pi pi-user-plus text-sm"></i>
+              {{ requestsForPost(post._id).length }} broker request{{ requestsForPost(post._id).length === 1 ? "" : "s" }}
+              <span
+                v-if="pendingRequestCount(post._id) > 0"
+                class="ml-1 inline-block bg-orange-500 text-white text-[10px] font-bold rounded-full px-2 py-0.5"
+              >
+                {{ pendingRequestCount(post._id) }} pending
+              </span>
+            </span>
           </footer>
+
+          <!-- Connect requests on this post (visible only to the post author) -->
+          <div
+            v-if="requestsForPost(post._id).length"
+            class="mt-4 pt-4 border-t border-gray-100"
+          >
+            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
+              Brokers who want to help
+            </p>
+            <ul class="space-y-2">
+              <li
+                v-for="req in requestsForPost(post._id)"
+                :key="req._id"
+                class="flex items-start gap-3 p-3 rounded-xl bg-gray-50 border"
+              >
+                <div class="h-9 w-9 rounded-full bg-orange-500 text-white flex items-center justify-center text-xs font-bold shrink-0">
+                  <img
+                    v-if="req.brokerAvatar"
+                    :src="req.brokerAvatar"
+                    :alt="req.brokerName"
+                    class="h-full w-full rounded-full object-cover"
+                  />
+                  <span v-else>{{ initials(req.brokerName) }}</span>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <p class="text-sm font-semibold text-gray-900 truncate">
+                      {{ req.brokerName || "Broker" }}
+                    </p>
+                    <span
+                      class="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full font-semibold"
+                      :class="
+                        req.status === 'approved'
+                          ? 'bg-green-100 text-green-700 border border-green-200'
+                          : req.status === 'rejected'
+                            ? 'bg-gray-100 text-gray-500 border border-gray-200'
+                            : 'bg-orange-100 text-orange-700 border border-orange-200'
+                      "
+                    >
+                      {{ req.status }}
+                    </span>
+                  </div>
+                  <p
+                    v-if="req.message"
+                    class="text-xs text-gray-700 mt-1 whitespace-pre-line"
+                  >
+                    {{ req.message }}
+                  </p>
+                  <div
+                    v-if="req.status === 'approved' && (req.brokerPhone || req.brokerEmail)"
+                    class="flex flex-wrap gap-3 text-[11px] text-gray-500 mt-1"
+                  >
+                    <span v-if="req.brokerPhone">📞 {{ req.brokerPhone }}</span>
+                    <span v-if="req.brokerEmail">✉️ {{ req.brokerEmail }}</span>
+                  </div>
+
+                  <div
+                    v-if="req.status === 'pending'"
+                    class="flex items-center gap-2 mt-2"
+                  >
+                    <button
+                      :disabled="respondingId === req._id"
+                      @click="respondConnect(req._id, 'approved')"
+                      class="text-xs font-semibold px-3 py-1 rounded-full bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      :disabled="respondingId === req._id"
+                      @click="respondConnect(req._id, 'rejected')"
+                      class="text-xs font-semibold px-3 py-1 rounded-full border border-gray-300 text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                    >
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>
 
           <!-- Comments -->
           <div
