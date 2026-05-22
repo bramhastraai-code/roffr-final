@@ -37,6 +37,12 @@ const endpoints = {
   // S3 upload (multipart)
   s3UploadOne: "/s3/upload",
   s3UploadMany: "/s3/upload/multiple",
+
+  // Group buying
+  groupBuyActive: "/group-buy/campaigns/public/active",
+  groupBuyByProject: "/group-buy/campaigns/public/by-project", // append /:projectId
+  groupBuyRequests: "/group-buy/requests",
+  groupBuyCustomerList: "/group-buy/requests/customer", // append /:customerId
 };
 
 export default endpoints;

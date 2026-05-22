@@ -7,6 +7,8 @@ import "swiper/css";
 import { useProjectStore } from "@/stores/projectStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMyDashboardStore } from "@/stores/myDashboardStore";
+import { useGroupBuyStore } from "@/stores/groupBuyStore";
+import GroupBuyCard from "@/components/GroupBuyCard.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -17,6 +19,36 @@ const { specificProjectDetails } = storeToRefs(projectStore);
 const authStore = useAuthStore();
 const dashboardStore = useMyDashboardStore();
 
+// ----- Group Buy -----
+const groupBuyStore = useGroupBuyStore();
+const liveCampaign = ref(null);
+
+const groupBuyJoinedCount = computed(() =>
+  liveCampaign.value
+    ? Number(liveCampaign.value.acceptedMembersCount || 0)
+    : 0,
+);
+const groupBuyTargetCount = computed(() =>
+  liveCampaign.value ? Number(liveCampaign.value.memberLimit || 5) : 5,
+);
+const currentCustomerId = computed(
+  () =>
+    authStore.user?._id ||
+    authStore.currentUserData?._id ||
+    (typeof window !== "undefined"
+      ? localStorage.getItem("customerId")
+      : "") ||
+    "",
+);
+
+const loadCampaign = async (projectId) => {
+  if (!projectId) {
+    liveCampaign.value = null;
+    return;
+  }
+  liveCampaign.value = await groupBuyStore.fetchCampaignForProject(projectId);
+};
+
 // ----- Loaders -----
 const loading = ref(false);
 const loadProject = async (id) => {
@@ -24,6 +56,7 @@ const loadProject = async (id) => {
   loading.value = true;
   try {
     await projectStore.getProjectById(id);
+    await loadCampaign(specificProjectDetails.value?._id || id);
   } finally {
     loading.value = false;
   }
@@ -418,6 +451,39 @@ const handleShare = async () => {
 
       <!-- ========== TAB BODIES ========== -->
       <section class="max-w-7xl mx-auto px-4 2xl:px-0 py-8">
+        <!-- GROUP BUY (shown only when builder has an ACTIVE campaign on this project) -->
+        <div v-if="liveCampaign" class="mb-6">
+          <div
+            class="flex items-center justify-between mb-3 rounded-2xl bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 px-5 py-3"
+          >
+            <div>
+              <p class="text-xs uppercase tracking-wider text-orange-700 font-semibold">
+                Group buy live
+              </p>
+              <p class="text-base font-semibold text-gray-900">
+                {{ liveCampaign.title || "Save more by joining together" }}
+              </p>
+              <p class="text-xs text-gray-600 mt-0.5">
+                Current discount:
+                <span class="text-orange-600 font-semibold">
+                  {{ liveCampaign.currentDiscountPercent || 0 }}%
+                </span>
+                · Unlocks more as members join
+              </p>
+            </div>
+          </div>
+          <GroupBuyCard
+            :people-joined="groupBuyJoinedCount"
+            :required-people="groupBuyTargetCount"
+            :members="[]"
+            :projectId="project?._id"
+            :customerId="currentCustomerId"
+            :planId="null"
+            :campaign="liveCampaign"
+            :project="project"
+          />
+        </div>
+
         <!-- OVERVIEW -->
         <div v-if="activeTab === 'overview'" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div class="lg:col-span-2 bg-white rounded-2xl border p-6">

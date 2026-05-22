@@ -1,13 +1,16 @@
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useProjectStore } from "@/stores/projectStore";
 import { useOrderStore } from "@/stores/orderStore";
+import { useGroupBuyStore } from "@/stores/groupBuyStore";
 import { storeToRefs } from "pinia";
+import GroupBuyJoinModal from "@/components/GroupBuyJoinModal.vue";
 
 const projectStore = useProjectStore();
 const { isModalOpen } = storeToRefs(projectStore);
 
 const orderStore = useOrderStore();
+const groupBuyStore = useGroupBuyStore();
 
 const props = defineProps({
   peopleJoined: { type: Number, required: true },
@@ -15,11 +18,54 @@ const props = defineProps({
   customerId: { type: String },
   projectId: { type: String },
   planId: { type: String },
+  campaign: { type: Object, default: null },
+  project: { type: Object, default: () => ({}) },
   members: {
     type: Array,
     default: () => [],
   },
 });
+
+// Real campaign tied to the project. If a campaign prop is passed in, use it;
+// otherwise try to fetch the active campaign for the project on mount.
+const liveCampaign = ref(props.campaign);
+const joinModalOpen = ref(false);
+
+const ensureCampaign = async () => {
+  if (liveCampaign.value || !props.projectId) return;
+  liveCampaign.value = await groupBuyStore.fetchCampaignForProject(props.projectId);
+};
+
+onMounted(ensureCampaign);
+watch(() => props.projectId, ensureCampaign);
+
+const isJoinable = computed(() => {
+  // Campaign must exist AND be ACTIVE (paused campaigns are visible but locked)
+  const c = liveCampaign.value;
+  if (!c) return false;
+  if (c.canJoin === false) return false;
+  return (c.status || "ACTIVE") === "ACTIVE";
+});
+
+const openJoinModal = async () => {
+  await ensureCampaign();
+  if (!liveCampaign.value) {
+    openModal();
+    return;
+  }
+  if (!isJoinable.value) {
+    // Paused / closed — don't open the modal at all
+    return;
+  }
+  joinModalOpen.value = true;
+};
+
+const handleJoined = async () => {
+  // refresh customer's list if logged in
+  if (props.customerId) {
+    await groupBuyStore.fetchMyRequests(props.customerId).catch(() => {});
+  }
+};
 
 // step state for modal: 1 = benefits card, 2 = requirements form + payment
 const step = ref(1);
@@ -242,10 +288,16 @@ const handleSubmitAndPay = async () => {
       </p>
 
       <button
-        class="mt-3 w-full rounded-full bg-gradient-to-r from-[#FF9F43] to-[#FF3C00] text-white text-xs font-semibold py-2 shadow-md"
-        @click="openModal"
+        class="mt-3 w-full rounded-full text-white text-xs font-semibold py-2 shadow-md transition-opacity"
+        :class="
+          liveCampaign && !isJoinable
+            ? 'bg-gray-400 cursor-not-allowed'
+            : 'bg-gradient-to-r from-[#FF9F43] to-[#FF3C00] hover:opacity-95'
+        "
+        :disabled="liveCampaign && !isJoinable"
+        @click="openJoinModal"
       >
-        Join group buy
+        {{ liveCampaign && !isJoinable ? "Group buy paused" : "Join group buy" }}
       </button>
 
       <p class="mt-2 text-[10px] text-orange-500">*Every 60 days, Restart.</p>
@@ -443,6 +495,15 @@ const handleSubmitAndPay = async () => {
       </div>
     </div>
   </Transition>
+
+  <GroupBuyJoinModal
+    :open="joinModalOpen"
+    :campaign="liveCampaign || {}"
+    :customer-id="customerId"
+    :project="project"
+    @close="joinModalOpen = false"
+    @joined="handleJoined"
+  />
 </template>
 
 <style scoped>

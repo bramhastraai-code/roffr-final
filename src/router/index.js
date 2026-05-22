@@ -149,6 +149,11 @@ const router = createRouter({
           component: GroupBuyView
         },
         {
+          name: "my-group-buys",
+          path: "/my-group-buys",
+          component: () => import('@/views/MyGroupBuysView.vue')
+        },
+        {
           name: "channel-partner",
           path: "/channel-partner",
           component: ChannelPartnerView

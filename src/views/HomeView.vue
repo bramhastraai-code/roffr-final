@@ -1,21 +1,6 @@
 <script setup>
 import GsapFade from '@/components/GsapFade.vue'
 
-// import HeroSection from '@/sections/homeSections/HeroSection.vue'
-// import DiscountSection from '@/sections/homeSections/DiscountSection.vue'
-// import TopProjectSection from '@/sections/homeSections/TopProjectSection.vue'
-// import TopResearchedSection from '@/sections/homeSections/TopResearchedSection.vue'
-// import UnbeatableDealsSection from '@/sections/homeSections/UnbeatableDealsSection.vue'
-// import WorkSection from '@/sections/homeSections/WorkSection.vue'
-// import CaseStudySection from '@/sections/homeSections/CaseStudySection.vue'
-// import ProjectCarouselSection from '@/sections/homeSections/ProjectCarouselSection.vue'
-// import CalculateSection from '@/sections/homeSections/CalculateSection.vue'
-// import BlogSection from '@/sections/homeSections/BlogSection.vue'
-// import SecuredInvestmentSection from '@/sections/homeSections/SecuredInvestmentSection.vue'
-// import EmiCalculatorSection from '@/sections/homeSections/EmiCalculatorSection.vue'
-// import TestimonialSection from '@/sections/homeSections/TestimonialSection.vue'
-// import FaqSection from '@/sections/homeSections/FaqSection.vue'
-
 import HeroSection from '@/sections/homeSection2/HeroSection.vue';
 import ProjectByTimeSection from '@/sections/homeSection2/ProjectByTimeSection.vue';
 import ProjectByBudgetSection from '@/sections/homeSection2/ProjectByBudgetSection.vue';

@@ -1,9 +1,10 @@
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useMyDashboardStore } from "@/stores/myDashboardStore";
+import { useGroupBuyStore } from "@/stores/groupBuyStore";
 import { storeToRefs } from "pinia";
 import Navbar from "@/components/Navbar.vue";
 
@@ -38,8 +39,65 @@ const menuItems = [
   { name: "My Properties", icon: "pi pi-home" },
   { name: "Favorites", icon: "pi pi-heart" },
   { name: "My Visits", icon: "pi pi-map-marker" },
+  { name: "My Group Buys", icon: "pi pi-users" },
   { name: "Feedback", icon: "pi pi-thumbs-up" },
 ];
+
+// ──────────────────────────────────────────────────────────
+// Group Buy history (token amount, status, assigned SM)
+// ──────────────────────────────────────────────────────────
+const groupBuyStore = useGroupBuyStore();
+const { myRequests: myGroupBuys, loading: groupBuyLoading } =
+  storeToRefs(groupBuyStore);
+
+const dashboardCustomerId = computed(
+  () =>
+    currentUserData.value?._id ||
+    user.value?._id ||
+    (typeof window !== "undefined"
+      ? localStorage.getItem("customerId")
+      : "") ||
+    "",
+);
+
+const fmtINR = (v) =>
+  v != null ? `₹ ${Number(v).toLocaleString("en-IN")}` : "—";
+
+const groupBuyStatusClass = (s) => {
+  switch (s) {
+    case "PENDING":
+      return "bg-yellow-100 text-yellow-700";
+    case "PAYMENT_DONE":
+      return "bg-blue-100 text-blue-700";
+    case "ACCEPTED":
+    case "FOLLOWUP":
+    case "SITE_VISIT_SCHEDULED":
+      return "bg-emerald-100 text-emerald-700";
+    case "CONVERTED":
+      return "bg-green-200 text-green-800";
+    case "REJECTED":
+    case "CANCELLED":
+      return "bg-red-100 text-red-700";
+    default:
+      return "bg-gray-100 text-gray-700";
+  }
+};
+
+const loadGroupBuys = async () => {
+  if (!dashboardCustomerId.value) return;
+  await groupBuyStore.fetchMyRequests(dashboardCustomerId.value);
+};
+
+// Load whenever the tab becomes active OR the customer id resolves later
+watch(
+  () => activeTab.value,
+  (t) => {
+    if (t === "My Group Buys") loadGroupBuys();
+  },
+);
+watch(dashboardCustomerId, (id) => {
+  if (id && activeTab.value === "My Group Buys") loadGroupBuys();
+});
 
 const handleLogout = () => {
   authStore.logout();
@@ -1038,6 +1096,147 @@ const submitFeedback = () => {
                       {{ visit.customerName }} · {{ visit.phoneNumber }}
                     </p>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- My Group Buys Content -->
+            <div v-if="activeTab === 'My Group Buys'" class="relative h-full">
+              <div class="mt-32 md:mt-24">
+                <div class="flex justify-between items-center mb-6">
+                  <div>
+                    <h3 class="text-2xl font-bold text-gray-900">
+                      My Group Buys
+                    </h3>
+                    <p class="text-sm text-gray-500 mt-1">
+                      Campaigns you've joined and the status of each token
+                      payment.
+                    </p>
+                  </div>
+                  <button
+                    @click="router.push('/project')"
+                    class="bg-[#FF5722] text-white font-semibold py-2 px-5 rounded-lg shadow hover:bg-[#F4511E] text-sm"
+                  >
+                    Find another group buy
+                  </button>
+                </div>
+
+                <div
+                  v-if="groupBuyLoading"
+                  class="text-center text-gray-500 py-10"
+                >
+                  <i class="pi pi-spin pi-spinner text-2xl"></i>
+                  <p class="mt-2 text-sm">Loading…</p>
+                </div>
+
+                <div
+                  v-else-if="!myGroupBuys.length"
+                  class="absolute inset-0 flex flex-col items-center justify-center text-center px-8"
+                >
+                  <div class="mb-6">
+                    <img
+                      src="/images/dashboard/empty-property.png"
+                      alt="No group buys"
+                      class="w-28 h-28 opacity-90"
+                    />
+                  </div>
+                  <h3 class="text-xl font-bold text-gray-900 mb-2 font-outfit">
+                    No Group Buys Yet
+                  </h3>
+                  <p class="text-gray-500 mb-8 font-outfit text-base">
+                    Join an active group buy on a project to save with other
+                    buyers.
+                  </p>
+                  <button
+                    @click="router.push('/project')"
+                    class="bg-[#FF5722] text-white font-bold py-3 px-6 rounded-lg shadow-md hover:bg-[#F4511E] transition-all font-outfit text-sm tracking-wide"
+                  >
+                    Browse Projects
+                  </button>
+                </div>
+
+                <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <article
+                    v-for="req in myGroupBuys"
+                    :key="req._id"
+                    class="rounded-2xl border border-gray-200 p-5 bg-white shadow-sm"
+                  >
+                    <header class="flex items-start justify-between gap-3">
+                      <div>
+                        <p
+                          class="text-xs uppercase tracking-wide text-gray-400"
+                        >
+                          {{ req.campaignId?.title || "Group buy" }}
+                        </p>
+                        <h4 class="text-lg font-semibold mt-1 text-gray-900">
+                          {{ req.projectId?.projectName || "Project" }}
+                        </h4>
+                        <p class="text-xs text-gray-500">
+                          {{
+                            req.projectId?.glocation ||
+                            req.projectId?.city ||
+                            ""
+                          }}
+                        </p>
+                      </div>
+                      <span
+                        class="text-[10px] font-semibold px-2 py-1 rounded-full"
+                        :class="groupBuyStatusClass(req.status)"
+                      >
+                        {{ req.status }}
+                      </span>
+                    </header>
+
+                    <div class="grid grid-cols-2 gap-3 mt-4 text-sm">
+                      <div>
+                        <p class="text-xs text-gray-400">Token amount</p>
+                        <p class="font-medium">{{ fmtINR(req.tokenAmount) }}</p>
+                      </div>
+                      <div>
+                        <p class="text-xs text-gray-400">Payment status</p>
+                        <p
+                          class="text-xs font-medium"
+                          :class="
+                            req.tokenPaid
+                              ? 'text-emerald-600'
+                              : 'text-amber-600'
+                          "
+                        >
+                          {{
+                            req.tokenPaid
+                              ? "✓ Builder confirmed receipt"
+                              : "Pay token to builder"
+                          }}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div
+                      v-if="req.sourcingManagerId"
+                      class="mt-4 rounded-xl bg-gray-50 px-3 py-2 text-xs"
+                    >
+                      <p class="text-gray-500">Your sourcing manager</p>
+                      <p class="font-medium text-gray-800">
+                        {{ req.sourcingManagerId.name }} —
+                        {{ req.sourcingManagerId.phoneNumber }}
+                      </p>
+                    </div>
+
+                    <div
+                      v-if="req.notes && req.notes.length"
+                      class="mt-3 text-xs text-gray-500 space-y-1"
+                    >
+                      <p class="font-semibold text-gray-600">Updates</p>
+                      <p
+                        v-for="(n, i) in req.notes.slice(-3)"
+                        :key="i"
+                        class="border-l-2 border-orange-200 pl-2"
+                      >
+                        <span class="italic">{{ n.byRole }}:</span>
+                        {{ n.note }}
+                      </p>
+                    </div>
+                  </article>
                 </div>
               </div>
             </div>
