@@ -279,13 +279,13 @@ const pendingRequestCount = (postId) =>
               placeholder="Share an update, a question, or a listing…"
               class="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 outline-none focus:border-orange-400 resize-none"
             ></textarea>
-            <div class="mt-2">
+            <!-- <div class="mt-2">
               <ImageUploader
                 v-model="newPostImages"
                 folder="social"
                 :max="4"
               />
-            </div>
+            </div> -->
             <p v-if="composerError" class="text-red-500 text-xs mt-2">
               {{ composerError }}
             </p>

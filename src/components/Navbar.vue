@@ -34,7 +34,6 @@ onBeforeUnmount(() => {
 const isActive = (path) => route.path === path;
 
 const links = [
-  { label: "Home", path: "/" },
   { label: "Projects", path: "/project" },
   { label: "Properties", path: "/properties" },
   { label: "Builders", path: "/builders" },
@@ -50,7 +49,7 @@ const links = [
       { label: "Case Studies", path: "/case-study" },
     ],
   },
-  { label: "Loan", path: "/loan" },
+  // { label: "Loan", path: "/loan" },
   // { label: "Corporate", path: "/corporate" },
 ];
 
@@ -198,19 +197,25 @@ const goTo = (path) => {
             Login
           </router-link>
         </div>
-        <div v-else class="flex items-center gap-4">
-          <router-link
-            to="/dashboard"
-            class=" transition-colors duration-300"
-            :class="isScrolled ? 'text-white' : 'text-black'"
-          >
-            Hi, {{ user?.name || "User" }}
+        <div v-else class="flex items-center gap-3">
+          <router-link to="/dashboard" title="Dashboard">
+            <div
+              class="w-9 h-9 rounded-full flex items-center justify-center font-semibold text-sm text-white bg-gradient-to-br from-orange-400 to-red-500 select-none"
+            >
+              {{ (user?.name || "U").charAt(0).toUpperCase() }}
+            </div>
           </router-link>
           <button
             @click="handleLogout"
-            class="text-white/80 bg-[#EB3131] hover:bg-[#DDA439] text-white px-5 py-1 rounded-full transition-colors duration-300"
+            title="Logout"
+            class="w-9 h-9 rounded-full flex items-center justify-center transition-colors"
+            :class="
+              isScrolled
+                ? 'bg-white/10 text-white/80 hover:bg-white/20 hover:text-white'
+                : 'bg-black/5 text-gray-600 hover:bg-black/10 hover:text-black'
+            "
           >
-            Logout
+            <i class="pi pi-sign-out text-sm"></i>
           </button>
         </div>
       </div>
