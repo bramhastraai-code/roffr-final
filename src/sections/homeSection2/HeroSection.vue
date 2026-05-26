@@ -223,15 +223,4 @@ onBeforeUnmount(() => {
     </div>
 
   </section>
-  <div class="max-w-7xl mx-auto mt-10 bg-black text-white flex items-center justify-between py-4 px-10 rounded-md">
-    <div class="">
-      <p class="font-semibold text-[25px]">Find my Realtor</p>
-      <p>Connect with the best locality property advisors</p>
-    </div>
-    <div class="">
-      <router-link to="/broker-list" class="bg-white px-6 py-2 rounded-full font-semibold text-black flex items-center gap-1"><p>Search</p>
-        <i class="pi pi-angle-right"></i>
-      </router-link>
-    </div>
-  </div>
 </template>

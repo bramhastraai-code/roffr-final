@@ -29,6 +29,9 @@ import BuilderListView from '@/views/BuilderListView.vue'
 import BuilderDetailsView from '@/views/BuilderDetailsView.vue'
 import SocialView from '@/views/SocialView.vue'
 import NewsDetails from '@/views/NewsDetails.vue'
+import PlatformsView from '@/views/PlatformsView.vue'
+import CitiesView from '@/views/CitiesView.vue'
+import CityProjectsView from '@/views/CityProjectsView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -182,6 +185,21 @@ const router = createRouter({
           name: "login",
           path: "/login",
           component: () => import('@/views/LoginView.vue')
+        },
+        {
+          name: "platforms",
+          path: "/platforms",
+          component: PlatformsView
+        },
+        {
+          name: "cities",
+          path: "/cities",
+          component: CitiesView
+        },
+        {
+          name: "city-projects",
+          path: "/cities/:city",
+          component: CityProjectsView
         },
       ]
     }
