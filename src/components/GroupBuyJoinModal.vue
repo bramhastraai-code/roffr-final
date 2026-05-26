@@ -15,6 +15,8 @@ const groupBuyStore = useGroupBuyStore();
 
 const submitting = ref(false);
 const submitted = ref(false); // flip to success state after submit
+const brokerPhone = ref(""); // optional broker mobile (10-digit, country code optional)
+const brokerPhoneError = ref("");
 
 // Token = average of project's min & max price × tokenPercent (or flat tokenAmount)
 const tokenAmount = computed(() => {
@@ -45,9 +47,30 @@ const discountSummary = computed(() => {
 watch(
   () => props.open,
   (v) => {
-    if (v) submitted.value = false;
+    if (v) {
+      submitted.value = false;
+      brokerPhone.value = "";
+      brokerPhoneError.value = "";
+    }
   },
 );
+
+const validateBrokerPhone = () => {
+  const raw = (brokerPhone.value || "").trim();
+  if (!raw) {
+    brokerPhoneError.value = "";
+    return true; // optional
+  }
+  const digits = raw.replace(/\D/g, "");
+  // Accept 10-digit, 12-digit (91xxxxxxxxxx)
+  if (digits.length === 10 || (digits.length === 12 && digits.startsWith("91"))) {
+    brokerPhoneError.value = "";
+    return true;
+  }
+  brokerPhoneError.value =
+    "Enter a 10-digit mobile (or include +91/91 prefix).";
+  return false;
+};
 
 const close = () => {
   if (submitting.value) return;
@@ -59,11 +82,15 @@ const submit = async () => {
     toast.error("Please log in to join the group buy.");
     return;
   }
+  if (!validateBrokerPhone()) {
+    return;
+  }
   submitting.value = true;
   try {
     const created = await groupBuyStore.createRequest({
       campaignId: props.campaign._id,
       customerId: props.customerId,
+      associatedBrokerPhone: brokerPhone.value?.trim() || undefined,
     });
     if (!created?._id) {
       throw new Error("Could not create group-buy request");
@@ -121,6 +148,37 @@ const submit = async () => {
               Pay this amount directly to the builder or sourcing manager. They
               will confirm receipt and accept your request — you'll see it in
               <strong>My Group Buys</strong>.
+            </p>
+          </div>
+
+          <div>
+            <label class="text-xs text-gray-600">
+              Broker mobile number
+              <span class="text-gray-400 font-normal">(optional)</span>
+            </label>
+            <div
+              class="flex items-center border rounded-full px-4 py-2.5 mt-1 bg-white"
+              :class="brokerPhoneError ? 'border-red-400' : 'border-gray-300'"
+            >
+              <span class="text-gray-500 text-sm mr-2">+91</span>
+              <input
+                v-model="brokerPhone"
+                @blur="validateBrokerPhone"
+                type="tel"
+                inputmode="numeric"
+                maxlength="13"
+                placeholder="Your broker's mobile"
+                class="flex-1 outline-none text-gray-700 placeholder-gray-400 text-sm"
+              />
+            </div>
+            <p
+              v-if="brokerPhoneError"
+              class="text-xs text-red-500 mt-1"
+            >
+              {{ brokerPhoneError }}
+            </p>
+            <p v-else class="text-[11px] text-gray-400 mt-1">
+              If a broker referred you, share their number so they get credit.
             </p>
           </div>
 

@@ -43,12 +43,33 @@ export const useGroupBuyStore = defineStore("groupBuy", () => {
    * Create a join request for a campaign. No requirements collected — the
    * customer's snapshot (name, phone, email) is taken from the Customer doc
    * server-side and the token amount is computed from project min/max price.
+   * `associatedBrokerPhone` is optional — if set, backend tries to link the
+   * matching agent so the broker gets credit for the referral.
    */
-  const createRequest = async ({ campaignId, customerId }) => {
+  const createRequest = async ({
+    campaignId,
+    customerId,
+    associatedBrokerPhone,
+  }) => {
     const res = await makeRequest(endpoints.groupBuyRequests, "POST", {
       campaignId,
       customerId,
+      associatedBrokerPhone: associatedBrokerPhone || undefined,
     });
+    return res?.data || null;
+  };
+
+  /** Customer marks the offline refund as received. */
+  const confirmRefund = async (requestId, customerId, note) => {
+    const res = await makeRequest(
+      endpoints.groupBuyRequests,
+      "PATCH",
+      { customerId, note },
+      {},
+      {},
+      0,
+      `${requestId}/confirm-refund`,
+    );
     return res?.data || null;
   };
 
@@ -80,6 +101,7 @@ export const useGroupBuyStore = defineStore("groupBuy", () => {
     fetchActiveCampaigns,
     fetchCampaignForProject,
     createRequest,
+    confirmRefund,
     fetchMyRequests,
   };
 });
