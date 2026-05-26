@@ -1,7 +1,8 @@
 <script setup>
-import { onMounted, computed } from "vue";
+import { onMounted, computed, ref } from "vue";
 import { useGroupBuyStore } from "@/stores/groupBuyStore";
 import { useAuthStore } from "@/stores/authStore";
+import { toast } from "vue3-toastify";
 
 const groupBuyStore = useGroupBuyStore();
 const authStore = useAuthStore();
@@ -34,6 +35,25 @@ const statusBadgeClass = (status) => {
       return "bg-red-100 text-red-700";
     default:
       return "bg-gray-100 text-gray-700";
+  }
+};
+
+const confirming = ref({}); // requestId → bool
+
+const confirmRefund = async (requestId) => {
+  if (!customerId.value || confirming.value[requestId]) return;
+  confirming.value[requestId] = true;
+  try {
+    await groupBuyStore.confirmRefund(requestId, customerId.value);
+    toast.success("Refund confirmation recorded. Thank you!");
+    await groupBuyStore.fetchMyRequests(customerId.value);
+  } catch (e) {
+    toast.error(
+      e?.response?.data?.message ||
+        "Could not record refund confirmation. Try again.",
+    );
+  } finally {
+    confirming.value[requestId] = false;
   }
 };
 
@@ -112,6 +132,41 @@ onMounted(async () => {
           <p class="text-gray-500">Your sourcing manager</p>
           <p class="font-medium text-gray-800">
             {{ req.sourcingManagerId.name }} — {{ req.sourcingManagerId.phoneNumber }}
+          </p>
+        </div>
+
+        <!-- Refund banner: builder paused/closed the campaign and is sending
+             back the token. Customer confirms once they receive it. -->
+        <div
+          v-if="req.refundStatus === 'INITIATED'"
+          class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs"
+        >
+          <p class="font-semibold text-amber-800">
+            Refund of {{ fmtCurrency(req.refundAmount || req.tokenAmount) }}
+            is being processed
+          </p>
+          <p class="text-amber-700 mt-0.5 leading-snug">
+            The builder has paused this group-buy and is returning your token.
+            Once you receive it, please confirm below.
+          </p>
+          <button
+            class="mt-2 w-full bg-amber-600 text-white text-xs font-semibold py-2 rounded-full hover:bg-amber-700 disabled:opacity-60"
+            :disabled="!!confirming[req._id]"
+            @click="confirmRefund(req._id)"
+          >
+            {{ confirming[req._id] ? "Saving…" : "✓ I have received my refund" }}
+          </button>
+        </div>
+        <div
+          v-else-if="req.refundStatus === 'RECEIVED'"
+          class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs"
+        >
+          <p class="font-semibold text-emerald-800">
+            ✓ Refund confirmed received
+          </p>
+          <p class="text-emerald-700 mt-0.5 leading-snug">
+            Thanks for confirming receipt of
+            {{ fmtCurrency(req.refundAmount || req.tokenAmount) }}.
           </p>
         </div>
 

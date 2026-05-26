@@ -88,6 +88,22 @@ const loadGroupBuys = async () => {
   await groupBuyStore.fetchMyRequests(dashboardCustomerId.value);
 };
 
+// Refund-receipt confirmation state, keyed by request id
+const confirmingRefund = ref({});
+const confirmGroupBuyRefund = async (requestId) => {
+  if (!dashboardCustomerId.value || confirmingRefund.value[requestId]) return;
+  confirmingRefund.value[requestId] = true;
+  try {
+    await groupBuyStore.confirmRefund(requestId, dashboardCustomerId.value);
+    await loadGroupBuys();
+  } catch (e) {
+    // groupBuyStore swallows errors with console.error; surface a soft hint
+    console.error("Refund confirmation failed", e);
+  } finally {
+    confirmingRefund.value[requestId] = false;
+  }
+};
+
 // Load whenever the tab becomes active OR the customer id resolves later
 watch(
   () => activeTab.value,
@@ -1219,6 +1235,41 @@ const submitFeedback = () => {
                       <p class="font-medium text-gray-800">
                         {{ req.sourcingManagerId.name }} —
                         {{ req.sourcingManagerId.phoneNumber }}
+                      </p>
+                    </div>
+
+                    <!-- Refund banner for the dashboard tab -->
+                    <div
+                      v-if="req.refundStatus === 'INITIATED'"
+                      class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs"
+                    >
+                      <p class="font-semibold text-amber-800">
+                        Refund of
+                        {{ fmtINR(req.refundAmount || req.tokenAmount) }}
+                        is being processed
+                      </p>
+                      <p class="text-amber-700 mt-0.5 leading-snug">
+                        The builder has paused this group-buy and is returning
+                        your token. Once you receive it, please confirm below.
+                      </p>
+                      <button
+                        class="mt-2 w-full bg-amber-600 text-white text-xs font-semibold py-2 rounded-full hover:bg-amber-700 disabled:opacity-60"
+                        :disabled="!!confirmingRefund[req._id]"
+                        @click="confirmGroupBuyRefund(req._id)"
+                      >
+                        {{
+                          confirmingRefund[req._id]
+                            ? "Saving…"
+                            : "✓ I have received my refund"
+                        }}
+                      </button>
+                    </div>
+                    <div
+                      v-else-if="req.refundStatus === 'RECEIVED'"
+                      class="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs"
+                    >
+                      <p class="font-semibold text-emerald-800">
+                        ✓ Refund confirmed received
                       </p>
                     </div>
 
