@@ -54,7 +54,8 @@ const router = createRouter({
         {
           name: "project",
           path: "/project",
-          component: ProjectView2
+          component: ProjectView2,
+          meta: { requiresAuth: true }
         },
         {
           name: "search",
@@ -64,7 +65,8 @@ const router = createRouter({
         {
           name: "properties",
           path: "/properties",
-          component: PropertiesView2
+          component: PropertiesView2,
+          meta: { requiresAuth: true }
         },
         {
           name: "contact",
@@ -84,22 +86,26 @@ const router = createRouter({
         {
           name: "channel-partners",
           path: "/channel-partners",
-          component: BrokerListView
+          component: BrokerListView,
+          meta: { requiresAuth: true }
         },
         {
           name: "channel-partner-details",
           path: "/channel-partners/:id",
-          component: BrokerDetailsView
+          component: BrokerDetailsView,
+          meta: { requiresAuth: true }
         },
         {
           name: "builders",
           path: "/builders",
-          component: BuilderListView
+          component: BuilderListView,
+          meta: { requiresAuth: true }
         },
         {
           name: "builder-details",
           path: "/builders/:id",
-          component: BuilderDetailsView
+          component: BuilderDetailsView,
+          meta: { requiresAuth: true }
         },
         {
           name: "social",
@@ -109,12 +115,14 @@ const router = createRouter({
         {
           name: "project-details",
           path: "/project-details/:id",
-          component: ProjectDetailView
+          component: ProjectDetailView,
+          meta: { requiresAuth: true }
         },
         {
           name: "property-details",
           path: "/property-details/:id",
-          component: PropertyDetailView
+          component: PropertyDetailView,
+          meta: { requiresAuth: true }
         },
         {
           name: "resources",
@@ -208,12 +216,18 @@ const router = createRouter({
     if (savedPosition) {
       return savedPosition;
     } else if (to.hash) {
-      return {
-        el: to.hash,
-      };
+      return { el: to.hash };
     } else {
       return { top: 0 };
     }
+  }
+})
+
+router.beforeEach((to, _from, next) => {
+  if (to.meta.requiresAuth && !localStorage.getItem('accessToken')) {
+    next({ name: 'login', query: { redirect: to.fullPath } })
+  } else {
+    next()
   }
 })
 

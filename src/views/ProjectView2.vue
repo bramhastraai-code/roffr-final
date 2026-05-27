@@ -5,6 +5,7 @@ import { storeToRefs } from "pinia";
 import { useSearchStore } from "@/stores/SearchStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { debounce } from "@/utils/debounce";
+import ProjectCard from "@/components/ProjectCard.vue";
 
 const router = useRouter();
 const route = useRoute();
@@ -383,51 +384,12 @@ onMounted(async () => {
         v-else
         class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
       >
-        <article
+        <ProjectCard
           v-for="item in items"
           :key="item.id"
-          @click="goToProject(item)"
-          class="rounded-2xl bg-white border shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition"
-        >
-          <div class="relative h-48 overflow-hidden bg-gray-100">
-            <img
-              v-if="item.image"
-              :src="item.image"
-              :alt="item.title"
-              class="w-full h-full object-cover"
-            />
-            <div
-              v-else
-              class="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900"
-            ></div>
-            <span class="absolute top-3 left-3 text-[10px] uppercase tracking-wider px-2 py-1 rounded-full font-semibold bg-orange-50 text-orange-600 border border-orange-200">
-              Project
-            </span>
-          </div>
-          <div class="p-4">
-            <h3 class="text-sm font-semibold text-gray-900 line-clamp-2">
-              {{ item.title }}
-            </h3>
-            <p class="text-xs text-gray-500 mt-1 line-clamp-1">
-              {{ item.subtitle || "—" }}
-            </p>
-            <p
-              v-if="item.minPrice || item.maxPrice"
-              class="text-sm font-semibold text-gray-900 mt-2"
-            >
-              {{ formatINR(item.minPrice) }}
-              <span v-if="item.maxPrice" class="text-xs text-gray-500 font-normal">
-                – {{ formatINR(item.maxPrice) }}
-              </span>
-            </p>
-            <button
-              class="mt-3 w-full bg-black text-white text-xs py-2 rounded-full hover:bg-gray-800"
-              @click.stop="goToProject(item)"
-            >
-              View details
-            </button>
-          </div>
-        </article>
+          :project="item.doc"
+          :show-group-buy="true"
+        />
       </div>
 
       <div

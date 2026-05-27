@@ -257,6 +257,27 @@ const handleShortlist = async () => {
   }
 };
 
+// ----- Description expand -----
+const descExpanded = ref(false);
+
+const savingsAmount = computed(() => {
+  if (!liveCampaign.value) return null;
+  const price = Number(project.value?.minPrice || 0);
+  const pct = Number(liveCampaign.value.currentDiscountPercent || 0);
+  if (!price || !pct) return null;
+  const saved = (price * pct) / 100;
+  if (saved >= 10000000) return `₹ ${(saved / 10000000).toFixed(2)} Cr`;
+  if (saved >= 100000) return `₹ ${(saved / 100000).toFixed(1)} L`;
+  return `₹ ${saved.toLocaleString("en-IN")}`;
+});
+
+const memberOrdinal = computed(() => {
+  const n = groupBuyJoinedCount.value + 1;
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+});
+
 // ----- Share -----
 const handleShare = async () => {
   const url = window.location.href;
@@ -287,148 +308,272 @@ const handleShare = async () => {
     </div>
 
     <template v-else-if="project?._id">
-      <!-- ========== HERO ========== -->
-      <section class="bg-white border-b border-gray-200">
-        <div class="max-w-7xl mx-auto px-4 2xl:px-0 pt-24 pb-8">
-          <button
-            @click="router.back()"
-            class="text-sm text-gray-500 hover:text-gray-900 mb-3 inline-flex items-center gap-1"
-          >
-            <i class="pi pi-arrow-left text-xs"></i> Back
-          </button>
+      <!-- ========== HERO: two-column layout ========== -->
+      <div class="max-w-7xl mx-auto px-4 2xl:px-0 pt-20">
+        <div class="flex flex-col lg:flex-row gap-8 items-start">
 
-          <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
-            <div>
+          <!-- ── LEFT COLUMN ────────────────────────────────────── -->
+          <div class="flex-1 min-w-0 pt-4">
+
+            <!-- Breadcrumb -->
+            <nav class="text-xs text-gray-400 flex items-center gap-1.5 mb-4 flex-wrap">
+              <router-link to="/" class="hover:text-gray-700">Home</router-link>
+              <i class="pi pi-angle-right text-[10px]"></i>
+              <router-link to="/project" class="hover:text-gray-700">Projects</router-link>
+              <template v-if="project.builderName">
+                <i class="pi pi-angle-right text-[10px]"></i>
+                <span>{{ project.builderName }}</span>
+              </template>
+              <i class="pi pi-angle-right text-[10px]"></i>
+              <span class="text-gray-700 font-medium truncate max-w-[180px]">{{ project.projectName }}</span>
+            </nav>
+
+            <!-- RERA + status badges -->
+            <div class="flex items-center gap-2 mb-3 flex-wrap">
+              <span
+                v-if="project.projectReraNumber || project.reraNo"
+                class="inline-flex items-center gap-1.5 bg-green-600 text-white text-[11px] font-semibold px-3 py-1 rounded-full"
+              >
+                <i class="pi pi-verified text-[10px]"></i> RERA Registered
+              </span>
               <span
                 v-if="project.projectStatus"
-                class="inline-block text-[11px] uppercase tracking-wider font-semibold px-3 py-1 rounded-full bg-orange-100 text-orange-700 mb-2"
+                class="inline-block text-[11px] font-semibold px-3 py-1 rounded-full border border-orange-300 bg-orange-50 text-orange-700"
               >
                 {{ project.projectStatus }}
               </span>
-              <h1 class="text-3xl md:text-4xl font-marcellus text-gray-900">
+            </div>
+
+            <!-- Title + action icons -->
+            <div class="flex items-start justify-between gap-3 mb-2">
+              <h1 class="text-2xl md:text-3xl font-bold text-gray-900 leading-tight">
                 {{ project.projectName || "Project" }}
               </h1>
-              <p class="text-sm text-gray-500 mt-1 flex items-center gap-1.5">
-                <i class="pi pi-map-marker text-xs"></i>
-                {{ locationLabel }}
-              </p>
-            </div>
-
-            <div class="flex flex-wrap gap-2 text-sm">
-              <button
-                @click="handleShare"
-                class="px-3 py-1.5 rounded-full border border-gray-300 hover:border-gray-900 flex items-center gap-1.5"
-              >
-                <i class="pi pi-share-alt text-xs"></i> Share
-              </button>
-              <button
-                @click="handleShortlist"
-                :disabled="togglingWishlist"
-                class="px-3 py-1.5 rounded-full border border-gray-300 hover:border-orange-400 hover:text-orange-600 flex items-center gap-1.5"
-              >
-                <i class="pi pi-heart text-xs"></i> Shortlist
-              </button>
-              <button
-                @click="openBookVisit"
-                class="px-4 py-1.5 rounded-full bg-gradient-to-r from-orange-500 to-red-600 text-white font-medium shadow flex items-center gap-1.5"
-              >
-                <i class="pi pi-calendar text-xs"></i> Book site visit
-              </button>
-            </div>
-          </div>
-
-          <!-- Gallery + summary card -->
-          <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mt-6">
-            <!-- Gallery -->
-            <div class="xl:col-span-2">
-              <div
-                class="rounded-2xl overflow-hidden bg-gray-100 h-[260px] sm:h-[400px] xl:h-[500px]"
-              >
-                <img
-                  :src="activeImage"
-                  :alt="project.projectName"
-                  class="w-full h-full object-cover"
-                />
-              </div>
-
-              <div
-                v-if="heroImages.length > 1"
-                class="mt-3 grid grid-cols-4 sm:grid-cols-6 gap-2"
-              >
+              <div class="flex items-center gap-2 shrink-0 mt-1">
                 <button
-                  v-for="(img, idx) in heroImages.slice(0, 12)"
-                  :key="idx"
-                  @click="activeImageIdx = idx"
-                  class="rounded-lg overflow-hidden h-16 border-2 transition"
-                  :class="
-                    activeImageIdx === idx
-                      ? 'border-orange-500'
-                      : 'border-transparent opacity-80 hover:opacity-100'
-                  "
+                  @click="handleShortlist"
+                  :disabled="togglingWishlist"
+                  class="w-9 h-9 rounded-full border border-gray-300 flex items-center justify-center hover:border-red-400 hover:text-red-500 transition"
                 >
-                  <img :src="img" class="w-full h-full object-cover" />
+                  <i class="pi pi-heart text-sm"></i>
+                </button>
+                <button
+                  @click="handleShare"
+                  class="w-9 h-9 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-600 transition"
+                >
+                  <i class="pi pi-share-alt text-sm"></i>
                 </button>
               </div>
             </div>
 
-            <!-- Summary card -->
-            <aside class="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col gap-4 shadow-sm">
-              <div>
-                <p class="text-xs uppercase tracking-wider text-gray-500">Price</p>
-                <p class="text-2xl font-semibold text-gray-900">
-                  {{ priceLabel }}
-                </p>
-              </div>
+            <!-- Location -->
+            <p class="text-sm text-gray-500 flex items-center gap-1.5 mb-5 flex-wrap">
+              <i class="pi pi-map-marker text-xs text-[#EB3131]"></i>
+              <span class="truncate max-w-[300px]">{{ locationLabel }}</span>
+              <button
+                @click="activeTab = 'location'"
+                class="text-[#EB3131] font-medium text-sm shrink-0 hover:underline"
+              >
+                View on map
+              </button>
+            </p>
 
-              <div class="grid grid-cols-2 gap-3 text-sm">
+            <!-- Main hero image -->
+            <div class="relative rounded-2xl overflow-hidden bg-gray-100 h-[240px] sm:h-[380px]">
+              <img
+                :src="activeImage"
+                :alt="project.projectName"
+                class="w-full h-full object-cover"
+              />
+              <span class="absolute bottom-3 left-1/2 -translate-x-1/2 text-[11px] text-white/80 bg-black/30 rounded-full px-3 py-1 whitespace-nowrap pointer-events-none">
+                Shot on location
+              </span>
+            </div>
+
+            <!-- Thumbnail strip -->
+            <div v-if="heroImages.length > 1" class="mt-2 flex gap-2 overflow-x-auto pb-1">
+              <button
+                v-for="(img, idx) in heroImages.slice(0, 8)"
+                :key="idx"
+                @click="activeImageIdx = idx"
+                class="rounded-xl overflow-hidden h-16 w-24 shrink-0 border-2 transition"
+                :class="activeImageIdx === idx ? 'border-[#EB3131]' : 'border-transparent opacity-70 hover:opacity-100'"
+              >
+                <img :src="img" class="w-full h-full object-cover" />
+              </button>
+            </div>
+
+            <!-- Overview card -->
+            <div class="mt-5 bg-white rounded-2xl border border-gray-200 p-5">
+              <h2 class="text-base font-bold text-gray-900 mb-2">Overview</h2>
+              <p
+                class="text-sm text-gray-600 leading-relaxed"
+                :class="descExpanded ? '' : 'line-clamp-4'"
+              >
+                {{ project.description || "No description provided." }}
+              </p>
+              <button
+                v-if="!descExpanded && (project.description || '').length > 200"
+                @click="descExpanded = true"
+                class="text-sm text-[#EB3131] font-medium mt-1 hover:underline"
+              >
+                read more
+              </button>
+
+              <!-- Stats row -->
+              <div class="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div>
-                  <p class="text-[11px] uppercase tracking-wider text-gray-500">Carpet area</p>
-                  <p class="font-medium text-gray-800">{{ carpetAreaLabel }}</p>
-                </div>
-                <div>
-                  <p class="text-[11px] uppercase tracking-wider text-gray-500">Configs</p>
-                  <p class="font-medium text-gray-800">
+                  <p class="text-[11px] text-gray-400 mb-0.5">Configuration</p>
+                  <p class="text-sm font-semibold text-gray-800">
                     {{ propertyConfigs.length ? propertyConfigs.join(", ") : "—" }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-[11px] uppercase tracking-wider text-gray-500">RERA</p>
-                  <p class="font-medium text-gray-800 truncate">
-                    {{ project.projectReraNumber || project.reraNo || "—" }}
+                  <p class="text-[11px] text-gray-400 mb-0.5">{{ project.projectStatus || "Under Construction" }}</p>
+                  <p class="text-sm font-semibold text-gray-800">
+                    Possession in {{ project.readyToPossessDate || "—" }}
                   </p>
                 </div>
                 <div>
-                  <p class="text-[11px] uppercase tracking-wider text-gray-500">Possession</p>
-                  <p class="font-medium text-gray-800">
-                    {{ project.readyToPossessDate || "—" }}
+                  <p class="text-[11px] text-gray-400 mb-0.5">Avg. Price</p>
+                  <p class="text-sm font-semibold text-gray-800">
+                    {{ project.avgPrice ? formatINR(project.avgPrice) + "/sq.ft" : "—" }}
                   </p>
+                </div>
+                <div>
+                  <p class="text-[11px] text-gray-400 mb-0.5">RERA Carpet Area</p>
+                  <p class="text-sm font-semibold text-gray-800">{{ carpetAreaLabel }}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── RIGHT STICKY PANEL ─────────────────────────────── -->
+          <aside class="w-full lg:w-[300px] xl:w-[320px] shrink-0 lg:sticky lg:top-24 pt-4 space-y-4">
+
+            <!-- CARD 1+2: Group buy + Price (single combined card) -->
+            <div class="rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
+
+              <!-- Red section: savings + avatars + join group -->
+              <div v-if="liveCampaign" class="bg-[#EB3131] px-5 pt-5 pb-5">
+                <p class="text-sm text-white/80 font-medium">You can save upto</p>
+                <p class="text-5xl font-extrabold text-white leading-none mt-0.5">
+                  {{ savingsAmount || `${liveCampaign.currentDiscountPercent || 0}%` }}
+                </p>
+                <p class="text-sm text-white/80 font-medium mt-1">on this property</p>
+
+                <!-- Avatars -->
+                <div class="flex items-center gap-2.5 mt-4">
+                  <div class="flex -space-x-2.5">
+                    <div
+                      v-for="n in Math.min(groupBuyJoinedCount, 3)"
+                      :key="n"
+                      class="w-10 h-10 rounded-full border-2 border-[#EB3131] flex items-center justify-center text-xs font-bold text-white shrink-0"
+                      :style="`background: ${['#c72828','#a01f1f','#8b1a1a'][n - 1] || '#6B7280'}`"
+                    >
+                      {{ String.fromCharCode(64 + n) }}
+                    </div>
+                  </div>
+                  <span class="text-white/70 font-bold">+</span>
+                  <div class="w-10 h-10 rounded-full border-2 border-dashed border-white/50 bg-white/10 flex items-center justify-center text-white font-bold text-sm shrink-0">
+                    ?
+                  </div>
+                </div>
+
+                <!-- Dashed divider -->
+                <div class="border-t border-dashed border-white/30 mt-4 mb-3"></div>
+
+                <p class="text-sm text-white mb-3">
+                  <span class="font-bold">You?</span> Become {{ memberOrdinal }} member
+                </p>
+                <button class="w-full bg-white text-[#EB3131] rounded-xl py-3 text-sm font-bold hover:bg-red-50 transition">
+                  Join Group
+                </button>
+              </div>
+
+              <!-- White section: price + green pill + book visit -->
+              <div class="bg-white px-5 py-5 space-y-4">
+                <div>
+                  <p class="text-xs text-gray-400 font-medium mb-1">Price Details</p>
+                  <p class="text-2xl font-extrabold text-gray-900 leading-tight">{{ priceLabel }}</p>
+                </div>
+                <div
+                  v-if="liveCampaign"
+                  class="bg-green-50 border border-green-100 rounded-xl px-3 py-2.5 text-xs text-green-700 font-medium leading-relaxed"
+                >
+                  Price may Further reduced as more buyer join the group
+                </div>
+                <button
+                  @click="openBookVisit"
+                  class="w-full bg-[#EB3131] hover:bg-[#c72828] text-white rounded-xl py-3 text-sm font-bold transition shadow-sm"
+                >
+                  Book a Site Visit
+                </button>
+                <a
+                  v-if="brochureUrl"
+                  :href="brochureUrl"
+                  target="_blank"
+                  rel="noopener"
+                  class="flex items-center justify-center gap-2 border border-gray-300 rounded-xl w-full py-2.5 text-sm font-medium text-gray-600 hover:border-gray-500 transition"
+                >
+                  <i class="pi pi-download text-xs"></i>
+                  Download brochure
+                </a>
+              </div>
+            </div>
+
+            <!-- CARD 3: About Developer -->
+            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
+              <h3 class="text-base font-bold text-gray-900">About Developer</h3>
+
+              <!-- Developer identity -->
+              <div class="flex items-center gap-3">
+                <div class="relative shrink-0">
+                  <img
+                    v-if="project.builderLogo"
+                    :src="project.builderLogo"
+                    :alt="project.builderName"
+                    class="w-14 h-14 rounded-full object-cover border border-gray-200"
+                  />
+                  <div
+                    v-else
+                    class="w-14 h-14 rounded-full bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center text-2xl font-extrabold text-amber-700 border border-amber-200"
+                  >
+                    {{ (project.builderName || "B").slice(0, 1).toUpperCase() }}
+                  </div>
+                  <span class="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                    <i class="pi pi-check text-white" style="font-size: 9px;"></i>
+                  </span>
+                </div>
+                <div>
+                  <p class="text-sm font-bold text-gray-900">{{ project.builderName || "Developer" }}</p>
+                  <p class="text-xs text-teal-600 font-semibold mt-0.5">Verified Developer</p>
                 </div>
               </div>
 
-              <a
-                v-if="brochureUrl"
-                :href="brochureUrl"
-                target="_blank"
-                rel="noopener"
-                class="border border-gray-300 rounded-lg w-full py-2 text-center text-sm font-medium text-gray-700 hover:border-gray-900"
-              >
-                <i class="pi pi-download text-xs mr-1"></i>
-                Download brochure
-              </a>
+              <!-- Estd + city -->
+              <p class="text-xs text-gray-500">
+                {{ project.region || project.city || "India" }}
+              </p>
 
-              <button
-                @click="openBookVisit"
-                class="bg-black text-white rounded-lg w-full py-2.5 text-sm font-medium hover:bg-gray-800"
-              >
-                Schedule a site visit
+              <!-- Stats pill -->
+              <div class="bg-[#F5EDE0] rounded-xl px-4 py-3">
+                <p class="text-sm font-bold text-gray-800">130+ Projects Delivered</p>
+                <p class="text-xs text-gray-500 mt-0.5">Trusted by 1300+ Families</p>
+              </div>
+
+              <!-- View profile button -->
+              <button class="w-full border border-[#EB3131] text-[#EB3131] rounded-xl py-2.5 text-sm font-semibold hover:bg-red-50 transition">
+                View Developer Profile
               </button>
-            </aside>
-          </div>
+            </div>
+
+          </aside>
         </div>
-      </section>
+      </div>
 
       <!-- ========== TABS ========== -->
-      <section class="bg-white border-b border-gray-200 sticky top-[72px] z-10">
+      <section class="bg-white border-b border-gray-200 sticky top-[72px] z-10 mt-8">
         <div class="max-w-7xl mx-auto px-4 2xl:px-0">
           <div class="flex gap-1 overflow-x-auto whitespace-nowrap py-3">
             <button
