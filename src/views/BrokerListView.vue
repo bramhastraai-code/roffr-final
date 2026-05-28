@@ -44,7 +44,7 @@ const initials = (name) =>
 </script>
 
 <template>
-  <section class="max-w-7xl mx-auto py-10 px-4 2xl:px-0 mt-10">
+  <section class="max-w-7xl mx-auto py-10 px-4 2xl:px-0 mt-24 md:mt-12">
     <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
       <div>
         <h1 class="text-3xl font-marcellus text-gray-900">Channel Partners</h1>

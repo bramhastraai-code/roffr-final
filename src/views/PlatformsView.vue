@@ -80,15 +80,10 @@
             </div>
           </div>
 
-          <!-- Right: image placeholder -->
+          <!-- Right: image -->
           <div class="w-full">
-            <div class="w-full aspect-[4/3] rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 flex flex-col items-center justify-center gap-3 text-gray-300">
-              <svg class="w-12 h-12" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                <circle cx="8.5" cy="8.5" r="1.5"/>
-                <polyline points="21 15 16 10 5 21"/>
-              </svg>
-              <p class="font-inter text-sm font-medium">Dashboard preview coming soon</p>
+            <div class="rounded-2xl overflow-hidden" style="box-shadow: 0 8px 40px rgba(0,0,0,0.10);">
+              <img src="/images/PlatformPage/rcircle.png" alt="R Circle broker dashboard" class="w-full object-cover object-left block" style="height: 520px;" />
             </div>
           </div>
         </div>

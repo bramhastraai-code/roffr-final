@@ -176,7 +176,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="bg-gray-50 min-h-screen">
+  <main class="bg-gray-50 min-h-screen mt-10 md:mt-0">
     <!-- Search bar -->
     <section class="bg-white border-b border-gray-200">
       <div class="max-w-7xl mx-auto px-4 pt-24 pb-6">

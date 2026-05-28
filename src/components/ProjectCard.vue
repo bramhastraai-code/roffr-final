@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { fmtINRShort, WHATSAPP } from '@/data/properties.js'
 import { gbInfo } from '@/data/groupBuy.js'
@@ -49,7 +49,30 @@ const dashOffset = computed(() =>
   gb.value ? CIRC * (1 - gb.value.pct / 100) : CIRC
 )
 
-const memberColors = ['bg-orange-400', 'bg-blue-500', 'bg-emerald-500', 'bg-purple-400', 'bg-rose-400']
+
+// ── Avatar swap animation ─────────────────────────────────────────
+const step = ref(0)
+let swapInterval = null
+
+onMounted(() => {
+  swapInterval = setInterval(() => {
+    step.value = (step.value + 1) % 3
+  }, 2000)
+})
+onBeforeUnmount(() => clearInterval(swapInterval))
+
+const GAP = 34 // px between avatar left edges (44px avatar - 10px overlap)
+
+const avatarLeft = (idx, total) => {
+  const count = Math.min(total, 3)
+  return ((idx + step.value) % count) * GAP
+}
+
+const avatarZ = (idx, total) => {
+  const count = Math.min(total, 3)
+  const pos = (idx + step.value) % count
+  return count - pos
+}
 
 const ordinal = (n) => {
   const sfx = ['th', 'st', 'nd', 'rd']
@@ -181,14 +204,23 @@ const joinGroup = (e) => {
 
       <!-- Member avatars row -->
       <div v-if="showGroupBuy && gb" class="flex items-center gap-3 mt-4">
-        <!-- Avatars -->
-        <div class="flex -space-x-2 shrink-0">
+        <!-- Avatars with swap animation -->
+        <div
+          class="relative shrink-0"
+          :style="{ width: `${44 + (Math.min(gb.joined, 3) - 1) * GAP}px`, height: '44px' }"
+        >
           <div
-            v-for="i in Math.min(gb.joined, 3)"
-            :key="i"
-            class="w-9 h-9 rounded-full border-2 border-white flex items-center justify-center text-[11px] font-bold text-white shadow-sm"
-            :class="memberColors[(i - 1) % memberColors.length]"
-          >{{ String.fromCharCode(64 + i) }}</div>
+            v-for="(_, idx) in Math.min(gb.joined, 3)"
+            :key="idx"
+            class="w-11 h-11 rounded-full border-2 border-white overflow-hidden shadow-md absolute top-0 transition-all duration-[650ms] ease-in-out"
+            :style="{ left: `${avatarLeft(idx, Math.min(gb.joined, 3))}px`, zIndex: avatarZ(idx, Math.min(gb.joined, 3)) }"
+          >
+            <img
+              :src="`/dummy/dummy-case${(idx % 3) + 1}.webp`"
+              class="w-full h-full object-cover blur-[1.5px]"
+              alt="member"
+            />
+          </div>
         </div>
 
         <span class="text-gray-400 text-base font-light">+</span>

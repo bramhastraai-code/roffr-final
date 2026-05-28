@@ -28,7 +28,7 @@ const cityLabel = () => {
 </script>
 
 <template>
-  <main class="max-w-7xl mx-auto px-4 xl:px-0 py-10">
+  <main class="max-w-7xl mx-auto px-4 xl:px-0 py-10 mt-24 md:mt-0">
 
     <!-- Breadcrumb / Back -->
     <div class="flex items-center gap-2 mb-6">

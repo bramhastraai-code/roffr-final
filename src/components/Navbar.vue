@@ -343,13 +343,13 @@ const handleLogout = () => { authStore.logout(); router.push("/"); isMenuOpen.va
 
           <!-- Input -->
           <div class="flex items-center gap-2 px-4 flex-1">
-            <i class="pi pi-search text-sm shrink-0" :class="isScrolled ? 'text-white/50' : 'text-gray-400'"></i>
+            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-gradient-to-r from-violet-500 to-blue-500 text-white leading-none shrink-0 tracking-wide">AI</span>
             <input
               v-model="searchInput"
               @keyup.enter="goToResults"
               @focus="desktopSugOpen = !!suggestionsList.length"
               type="text"
-              placeholder="Search projects, properties, locations..."
+              placeholder="Ask AI for projects..."
               class="flex-1 bg-transparent outline-none text-sm py-2"
               :class="isScrolled ? 'text-white placeholder-white/40' : 'text-gray-800 placeholder-gray-400'"
             />
@@ -363,9 +363,9 @@ const handleLogout = () => { authStore.logout(); router.push("/"); isMenuOpen.va
             </button>
             <button
               @click="goToResults"
-              class="shrink-0 h-8 px-4 rounded-full bg-[#EB3131] text-white text-xs font-semibold hover:bg-[#c72828] transition-colors ml-1"
+              class="shrink-0 h-8 w-8 rounded-full bg-[#EB3131] text-white text-sm flex items-center justify-center hover:bg-[#c72828] transition-colors ml-1"
             >
-              Search
+              <i class="pi pi-search"></i>
             </button>
           </div>
         </div>
@@ -454,13 +454,13 @@ const handleLogout = () => { authStore.logout(); router.push("/"); isMenuOpen.va
         class="flex items-center gap-2 px-4 py-2 rounded-full border"
         :class="isScrolled ? 'border-white/20 bg-white/10' : 'border-gray-200 bg-white'"
       >
-        <i class="pi pi-search text-sm shrink-0" :class="isScrolled ? 'text-white/50' : 'text-gray-400'"></i>
+        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-gradient-to-r from-violet-500 to-blue-500 text-white leading-none shrink-0 tracking-wide">AI</span>
         <input
           v-model="searchInput"
           @keyup.enter="goToResults"
           @focus="mobileSugOpen = !!suggestionsList.length"
           type="text"
-          placeholder="Search projects, properties..."
+          placeholder="Ask AI for projects..."
           class="flex-1 bg-transparent outline-none text-sm"
           :class="isScrolled ? 'text-white placeholder-white/40' : 'text-gray-800 placeholder-gray-400'"
         />
@@ -474,9 +474,9 @@ const handleLogout = () => { authStore.logout(); router.push("/"); isMenuOpen.va
         </button>
         <button
           @click="goToResults"
-          class="shrink-0 h-7 px-3 rounded-full bg-[#EB3131] text-white text-xs font-semibold hover:bg-[#c72828] transition-colors ml-1"
+          class="shrink-0 h-7 w-7 rounded-full bg-[#EB3131] text-white text-xs flex items-center justify-center hover:bg-[#c72828] transition-colors ml-1"
         >
-          Search
+          <i class="pi pi-search"></i>
         </button>
       </div>
 
