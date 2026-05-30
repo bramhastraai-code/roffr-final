@@ -196,11 +196,6 @@ const router = createRouter({
           component: () => import('@/views/DashboardView.vue')
         },
         {
-          name: "login",
-          path: "/login",
-          component: () => import('@/views/LoginView.vue')
-        },
-        {
           name: "platforms",
           path: "/platforms",
           component: PlatformsView
@@ -216,7 +211,12 @@ const router = createRouter({
           component: CityProjectsView
         },
       ]
-    }
+    },
+    {
+      name: "login",
+      path: "/login",
+      component: () => import('@/views/LoginView.vue')
+    },
   ],
   scrollBehavior(to, from, savedPosition) {
     if (savedPosition) {
