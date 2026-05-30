@@ -32,6 +32,18 @@ const initials = (name) =>
     .join("")
     .toUpperCase();
 
+const redactName = (name) => {
+  if (!name) return "Broker";
+  return name
+    .split(" ")
+    .map((word, i) =>
+      i === 0
+        ? word.slice(0, 3) + "*".repeat(Math.max(0, word.length - 3))
+        : word[0] + "*".repeat(Math.max(0, word.length - 1))
+    )
+    .join(" ");
+};
+
 const loadBroker = async (id) => {
   if (!id) return;
   await brokerStore.getBrokerData(id);
@@ -88,7 +100,7 @@ const handleConnect = () => {
           </div>
           <div>
             <h1 class="text-2xl font-semibold text-gray-900">
-              {{ broker?.name || "Broker" }}
+              {{ redactName(broker?.name) }}
             </h1>
             <p class="text-sm text-gray-500">
               {{ broker?.firmName || "Independent" }}
@@ -103,9 +115,7 @@ const handleConnect = () => {
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-6">
           <div>
             <p class="text-gray-500 text-xs uppercase tracking-wider">Phone</p>
-            <p class="mt-1 text-sm text-gray-800">
-              {{ broker?.phoneNumber || "—" }}
-            </p>
+            <p class="mt-1 text-sm text-gray-800">**********</p>
           </div>
           <div>
             <p class="text-gray-500 text-xs uppercase tracking-wider">Email</p>

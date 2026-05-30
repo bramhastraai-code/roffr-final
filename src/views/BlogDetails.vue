@@ -57,11 +57,6 @@ const blog = computed(() => blogStore.getBlogBySlug(route.params.slug));
         v-html="blog.content_html"
       ></div>
 
-      <!-- 🔍 SEO (optional/debug) -->
-      <div class="mt-10 p-4 bg-black/10 rounded-lg text-sm">
-        <p><strong>Meta Title:</strong> {{ blog.seo.meta_title }}</p>
-        <p><strong>Description:</strong> {{ blog.seo.meta_description }}</p>
-      </div>
     </div>
 
     <div v-else class="text-center py-20 text-gray-500">Blog not found</div>

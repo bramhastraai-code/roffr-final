@@ -18,9 +18,9 @@ const {isModalOpen} = storeToRefs(botStore)
       <RouterView />
       <div class="relative z-30">
         
-        <button @click="isModalOpen = true" class="fixed bottom-5 right-5">
+        <!-- <button @click="isModalOpen = true" class="fixed bottom-5 right-5">
           <img src="/svg/Global/bot-logo.svg" class="w-[250px]" alt="" />
-        </button>
+        </button> -->
       </div>
       <!-- <VideoContainer class="fixed -bottom-10 left-5 z-30"/> -->
       <BotModal/>

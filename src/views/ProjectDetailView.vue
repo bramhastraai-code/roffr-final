@@ -1,14 +1,17 @@
 <script setup>
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, onBeforeUnmount, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { Swiper, SwiperSlide } from "swiper/vue";
+import { Navigation, Keyboard } from "swiper/modules";
 import "swiper/css";
+import "swiper/css/navigation";
 import { useProjectStore } from "@/stores/projectStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMyDashboardStore } from "@/stores/myDashboardStore";
 import { useGroupBuyStore } from "@/stores/groupBuyStore";
 import GroupBuyCard from "@/components/GroupBuyCard.vue";
+import GroupBuyJoinModal from "@/components/GroupBuyJoinModal.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -41,6 +44,26 @@ const currentCustomerId = computed(
     "",
 );
 
+const joinModalOpen = ref(false);
+
+const isJoinable = computed(() => {
+  const c = liveCampaign.value;
+  if (!c) return false;
+  if (c.canJoin === false) return false;
+  return (c.status || "ACTIVE") === "ACTIVE";
+});
+
+const openStickyJoinModal = () => {
+  if (!isJoinable.value) return;
+  joinModalOpen.value = true;
+};
+
+const handleJoined = async () => {
+  if (currentCustomerId.value) {
+    await groupBuyStore.fetchMyRequests(currentCustomerId.value).catch(() => {});
+  }
+};
+
 const loadCampaign = async (projectId) => {
   if (!projectId) {
     liveCampaign.value = null;
@@ -62,7 +85,20 @@ const loadProject = async (id) => {
   }
 };
 
-onMounted(() => loadProject(route.params.id));
+// ----- Avatar swap animation -----
+const step = ref(0);
+let swapInterval = null;
+const GAP = 34;
+
+const avatarLeft = (idx, total) => ((idx + step.value) % Math.min(total, 3)) * GAP;
+const avatarZ    = (idx, total) => { const c = Math.min(total, 3); return c - (idx + step.value) % c; };
+
+onMounted(() => {
+  loadProject(route.params.id);
+  swapInterval = setInterval(() => { step.value = (step.value + 1) % 3; }, 2000);
+});
+onBeforeUnmount(() => clearInterval(swapInterval));
+
 watch(
   () => route.params.id,
   (id) => loadProject(id),
@@ -278,25 +314,50 @@ const memberOrdinal = computed(() => {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 });
 
-// ----- Share -----
-const handleShare = async () => {
-  const url = window.location.href;
-  const title = project.value?.projectName || "Project";
-  if (navigator.share) {
-    try {
-      await navigator.share({ title, url });
-      return;
-    } catch {
-      /* fall through to clipboard */
-    }
-  }
-  try {
-    await navigator.clipboard.writeText(url);
-    visitMsg.value = "Link copied to clipboard.";
-  } catch {
-    /* ignore */
-  }
+// ----- Share dialog -----
+const showShareModal = ref(false);
+const linkCopied = ref(false);
+
+const openShareModal = () => {
+  showShareModal.value = true;
+  linkCopied.value = false;
 };
+
+const copyLink = async () => {
+  try {
+    await navigator.clipboard.writeText(window.location.href);
+    linkCopied.value = true;
+    setTimeout(() => (linkCopied.value = false), 2000);
+  } catch { /* ignore */ }
+};
+
+const socialLinks = computed(() => {
+  const url = encodeURIComponent(window.location.href);
+  const text = encodeURIComponent(project.value?.projectName || "Check out this project on Roffr");
+  return {
+    whatsapp:  `https://wa.me/?text=${text}%20${url}`,
+    facebook:  `https://www.facebook.com/sharer/sharer.php?u=${url}`,
+    twitter:   `https://twitter.com/intent/tweet?text=${text}&url=${url}`,
+    linkedin:  `https://www.linkedin.com/sharing/share-offsite/?url=${url}`,
+    telegram:  `https://t.me/share/url?url=${url}&text=${text}`,
+    email:     `mailto:?subject=${text}&body=${url}`,
+  };
+});
+
+// ----- Image carousel modal -----
+const showImageCarousel = ref(false);
+const carouselIdx = ref(0);
+const swiperInstance = ref(null);
+const activeCarouselIdx = ref(0);
+
+const openCarousel = (idx = 0) => {
+  carouselIdx.value = idx;
+  activeCarouselIdx.value = idx;
+  showImageCarousel.value = true;
+};
+
+const onCarouselSwiper = (swiper) => { swiperInstance.value = swiper; };
+const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.realIndex; };
 </script>
 
 <template>
@@ -350,15 +411,15 @@ const handleShare = async () => {
                 {{ project.projectName || "Project" }}
               </h1>
               <div class="flex items-center gap-2 shrink-0 mt-1">
-                <button
+                <!-- <button
                   @click="handleShortlist"
                   :disabled="togglingWishlist"
                   class="w-9 h-9 rounded-full border border-gray-300 flex items-center justify-center hover:border-red-400 hover:text-red-500 transition"
                 >
                   <i class="pi pi-heart text-sm"></i>
-                </button>
+                </button> -->
                 <button
-                  @click="handleShare"
+                  @click="openShareModal"
                   class="w-9 h-9 rounded-full border border-gray-300 flex items-center justify-center hover:border-gray-600 transition"
                 >
                   <i class="pi pi-share-alt text-sm"></i>
@@ -367,24 +428,26 @@ const handleShare = async () => {
             </div>
 
             <!-- Location -->
-            <p class="text-sm text-gray-500 flex items-center gap-1.5 mb-5 flex-wrap">
-              <i class="pi pi-map-marker text-xs text-[#EB3131]"></i>
-              <span class="truncate max-w-[300px]">{{ locationLabel }}</span>
-              <button
-                @click="activeTab = 'location'"
-                class="text-[#EB3131] font-medium text-sm shrink-0 hover:underline"
-              >
-                View on map
-              </button>
+            <p class="text-sm text-gray-500 flex items-start gap-1.5 mb-5 flex-wrap">
+              <i class="pi pi-map-marker text-md mt-1 text-[#EB3131]"></i>
+              <span class=" max-w-[400px]">{{ locationLabel }}</span>
             </p>
 
             <!-- Main hero image -->
-            <div class="relative rounded-2xl overflow-hidden bg-gray-100 h-[240px] sm:h-[380px]">
+            <div
+              class="relative rounded-2xl overflow-hidden bg-gray-100 h-[240px] sm:h-[380px] cursor-zoom-in group"
+              @click="openCarousel(activeImageIdx)"
+            >
               <img
                 :src="activeImage"
                 :alt="project.projectName"
-                class="w-full h-full object-cover"
+                class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
               />
+              <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 flex items-center justify-center">
+                <span class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/50 text-white text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                  <i class="pi pi-expand text-[11px]"></i> View all photos
+                </span>
+              </div>
               <span class="absolute bottom-3 left-1/2 -translate-x-1/2 text-[11px] text-white/80 bg-black/30 rounded-full px-3 py-1 whitespace-nowrap pointer-events-none">
                 Shot on location
               </span>
@@ -395,7 +458,7 @@ const handleShare = async () => {
               <button
                 v-for="(img, idx) in heroImages.slice(0, 8)"
                 :key="idx"
-                @click="activeImageIdx = idx"
+                @click="activeImageIdx = idx; openCarousel(idx)"
                 class="rounded-xl overflow-hidden h-16 w-24 shrink-0 border-2 transition"
                 :class="activeImageIdx === idx ? 'border-[#EB3131]' : 'border-transparent opacity-70 hover:opacity-100'"
               >
@@ -449,29 +512,36 @@ const handleShare = async () => {
           </div>
 
           <!-- ── RIGHT STICKY PANEL ─────────────────────────────── -->
-          <aside class="w-full lg:w-[300px] xl:w-[320px] shrink-0 lg:sticky lg:top-24 pt-4 space-y-4">
+          <aside class="w-full lg:w-[300px] xl:w-[320px] shrink-0 lg:sticky lg:top-24 pt-4 space-y-4 group-buy-aside">
 
             <!-- CARD 1+2: Group buy + Price (single combined card) -->
-            <div class="rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
+            <div class="rounded-2xl overflow-hidden border shadow-sm" :class="liveCampaign ? 'border-red-200 group-buy-card--live' : 'border-gray-200'">
 
               <!-- Red section: savings + avatars + join group -->
               <div v-if="liveCampaign" class="bg-[#EB3131] px-5 pt-5 pb-5">
                 <p class="text-sm text-white/80 font-medium">You can save upto</p>
-                <p class="text-5xl font-extrabold text-white leading-none mt-0.5">
+                <p class="text-5xl font-extrabold text-white leading-none mt-0.5 savings-pulse">
                   {{ savingsAmount || `${liveCampaign.currentDiscountPercent || 0}%` }}
                 </p>
                 <p class="text-sm text-white/80 font-medium mt-1">on this property</p>
 
-                <!-- Avatars -->
+                <!-- Avatars with swap animation -->
                 <div class="flex items-center gap-2.5 mt-4">
-                  <div class="flex -space-x-2.5">
+                  <div
+                    class="relative shrink-0"
+                    :style="{ width: `${44 + (Math.min(groupBuyJoinedCount, 3) - 1) * GAP}px`, height: '44px' }"
+                  >
                     <div
-                      v-for="n in Math.min(groupBuyJoinedCount, 3)"
-                      :key="n"
-                      class="w-10 h-10 rounded-full border-2 border-[#EB3131] flex items-center justify-center text-xs font-bold text-white shrink-0"
-                      :style="`background: ${['#c72828','#a01f1f','#8b1a1a'][n - 1] || '#6B7280'}`"
+                      v-for="(_, idx) in Math.min(groupBuyJoinedCount, 3)"
+                      :key="idx"
+                      class="w-11 h-11 rounded-full border-2 border-white overflow-hidden shadow-md absolute top-0 transition-all duration-[650ms] ease-in-out"
+                      :style="{ left: `${avatarLeft(idx, groupBuyJoinedCount)}px`, zIndex: avatarZ(idx, groupBuyJoinedCount) }"
                     >
-                      {{ String.fromCharCode(64 + n) }}
+                      <img
+                        :src="`/dummy/dummy-case${(idx % 3) + 1}.webp`"
+                        class="w-full h-full object-cover blur-[1.5px]"
+                        alt="member"
+                      />
                     </div>
                   </div>
                   <span class="text-white/70 font-bold">+</span>
@@ -486,9 +556,16 @@ const handleShare = async () => {
                 <p class="text-sm text-white mb-3">
                   <span class="font-bold">You?</span> Become {{ memberOrdinal }} member
                 </p>
-                <button class="w-full bg-white text-[#EB3131] rounded-xl py-3 text-sm font-bold hover:bg-red-50 transition">
-                  Join Group
-                </button>
+                <div :class="isJoinable ? 'p-[2px] rounded-xl join-btn-border' : ''">
+                  <button
+                    @click="openStickyJoinModal"
+                    :disabled="!isJoinable"
+                    class="w-full rounded-[10px] py-3 text-sm font-bold transition"
+                    :class="!isJoinable ? 'bg-white/40 text-white/70 cursor-not-allowed' : 'bg-white text-[#EB3131] hover:bg-red-50'"
+                  >
+                    {{ !isJoinable ? "Group buy paused" : "Join Group" }}
+                  </button>
+                </div>
               </div>
 
               <!-- White section: price + green pill + book visit -->
@@ -918,6 +995,156 @@ const handleShare = async () => {
       </button>
     </div>
 
+    <!-- ========== SHARE DIALOG ========== -->
+    <Transition name="modal-fade">
+      <div
+        v-if="showShareModal"
+        class="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+        @click.self="showShareModal = false"
+      >
+        <div class="bg-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden">
+          <!-- Header -->
+          <div class="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-100">
+            <h3 class="text-base font-bold text-gray-900">Share this project</h3>
+            <button @click="showShareModal = false" class="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition">
+              <i class="pi pi-times text-gray-500 text-xs"></i>
+            </button>
+          </div>
+
+          <div class="px-5 py-5 space-y-4">
+            <!-- Copy link -->
+            <div class="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5">
+              <i class="pi pi-link text-gray-400 text-sm shrink-0"></i>
+              <span class="flex-1 text-xs text-gray-500 truncate">{{ $route.fullPath }}</span>
+              <button
+                @click="copyLink"
+                class="shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg transition"
+                :class="linkCopied ? 'bg-green-100 text-green-700' : 'bg-[#EB3131] text-white hover:bg-[#c72828]'"
+              >
+                {{ linkCopied ? 'Copied!' : 'Copy' }}
+              </button>
+            </div>
+
+            <!-- Social media grid -->
+            <div class="grid grid-cols-3 gap-3">
+              <a
+                :href="socialLinks.whatsapp" target="_blank" rel="noopener"
+                class="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-green-50 hover:bg-green-100 transition"
+              >
+                <i class="pi pi-whatsapp text-green-600 text-xl"></i>
+                <span class="text-[11px] font-medium text-gray-600">WhatsApp</span>
+              </a>
+              <a
+                :href="socialLinks.facebook" target="_blank" rel="noopener"
+                class="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-blue-50 hover:bg-blue-100 transition"
+              >
+                <i class="pi pi-facebook text-blue-600 text-xl"></i>
+                <span class="text-[11px] font-medium text-gray-600">Facebook</span>
+              </a>
+              <a
+                :href="socialLinks.twitter" target="_blank" rel="noopener"
+                class="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-sky-50 hover:bg-sky-100 transition"
+              >
+                <i class="pi pi-twitter text-sky-500 text-xl"></i>
+                <span class="text-[11px] font-medium text-gray-600">Twitter / X</span>
+              </a>
+              <a
+                :href="socialLinks.linkedin" target="_blank" rel="noopener"
+                class="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-blue-50 hover:bg-blue-100 transition"
+              >
+                <i class="pi pi-linkedin text-blue-700 text-xl"></i>
+                <span class="text-[11px] font-medium text-gray-600">LinkedIn</span>
+              </a>
+              <a
+                :href="socialLinks.telegram" target="_blank" rel="noopener"
+                class="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-sky-50 hover:bg-sky-100 transition"
+              >
+                <svg class="w-5 h-5 text-sky-500 fill-current" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                <span class="text-[11px] font-medium text-gray-600">Telegram</span>
+              </a>
+              <a
+                :href="socialLinks.email" target="_blank" rel="noopener"
+                class="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-gray-50 hover:bg-gray-100 transition"
+              >
+                <i class="pi pi-envelope text-gray-600 text-xl"></i>
+                <span class="text-[11px] font-medium text-gray-600">Email</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- ========== IMAGE CAROUSEL MODAL ========== -->
+    <Transition name="modal-fade">
+      <div
+        v-if="showImageCarousel"
+        class="fixed inset-0 z-50 bg-black/95 flex flex-col"
+        @keydown.esc="showImageCarousel = false"
+      >
+        <!-- Toolbar -->
+        <div class="flex items-center justify-between px-4 py-3 shrink-0">
+          <p class="text-white/70 text-sm font-medium">{{ project.projectName }}</p>
+          <button
+            @click="showImageCarousel = false"
+            class="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition"
+          >
+            <i class="pi pi-times text-white text-sm"></i>
+          </button>
+        </div>
+
+        <!-- Swiper -->
+        <div class="flex-1 min-h-0">
+          <Swiper
+            :modules="[Navigation, Keyboard]"
+            :navigation="true"
+            :keyboard="{ enabled: true }"
+            :initial-slide="carouselIdx"
+            :key="carouselIdx"
+            loop
+            class="w-full h-full carousel-swiper"
+            @swiper="onCarouselSwiper"
+            @slideChange="onCarouselSlideChange"
+          >
+            <SwiperSlide
+              v-for="(img, idx) in heroImages"
+              :key="idx"
+              class="flex items-center justify-center"
+            >
+              <img
+                :src="img"
+                :alt="`${project.projectName} – photo ${idx + 1}`"
+                class="max-h-full max-w-full object-contain select-none"
+              />
+            </SwiperSlide>
+          </Swiper>
+        </div>
+
+        <!-- Thumbnail strip -->
+        <div class="shrink-0 flex gap-2 justify-center overflow-x-auto px-4 py-3">
+          <button
+            v-for="(img, idx) in heroImages"
+            :key="idx"
+            @click="swiperInstance && swiperInstance.slideToLoop(idx)"
+            class="w-14 h-10 rounded-lg overflow-hidden border-2 shrink-0 transition"
+            :class="activeCarouselIdx === idx ? 'border-white' : 'border-transparent opacity-50 hover:opacity-80'"
+          >
+            <img :src="img" class="w-full h-full object-cover" />
+          </button>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Group Buy Join Modal (triggered from sticky panel) -->
+    <GroupBuyJoinModal
+      :open="joinModalOpen"
+      :campaign="liveCampaign || {}"
+      :customer-id="currentCustomerId"
+      :project="project"
+      @close="joinModalOpen = false"
+      @joined="handleJoined"
+    />
+
     <!-- Site visit modal -->
     <div
       v-if="showVisitModal"
@@ -991,3 +1218,80 @@ const handleShare = async () => {
     </div>
   </main>
 </template>
+
+<style scoped>
+/* ── Group-buy card animations ─────────────────────────────── */
+
+/* One-time slide-in entrance for the sticky aside */
+.group-buy-aside {
+  animation: aside-enter 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes aside-enter {
+  from { opacity: 0; transform: translateX(32px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Continuous pulsing glow ring — only when a live campaign exists */
+.group-buy-card--live {
+  animation: card-glow 2.8s ease-in-out infinite;
+}
+@keyframes card-glow {
+  0%, 100% { box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+  50%       { box-shadow: 0 6px 28px rgba(235,49,49,0.30), 0 0 0 3px rgba(235,49,49,0.12); }
+}
+
+/* Savings number — gentle scale pulse */
+.savings-pulse {
+  display: inline-block;
+  animation: savings-pop 2.4s ease-in-out infinite;
+  transform-origin: left center;
+}
+@keyframes savings-pop {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.05); }
+}
+
+/* Join button — animated gradient border */
+.join-btn-border {
+  background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899, #ef4444, #f97316, #a855f7, #6366f1);
+  background-size: 300% 300%;
+  animation: gradient-shift 4s ease infinite;
+}
+@keyframes gradient-shift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ── Modal transitions ──────────────────────────────────────── */
+.modal-fade-enter-active,
+.modal-fade-leave-active { transition: opacity 0.25s ease; }
+.modal-fade-enter-from,
+.modal-fade-leave-to    { opacity: 0; }
+
+/* Carousel slide: fill height, center image both axes */
+.carousel-swiper :deep(.swiper-wrapper) {
+  align-items: center;
+}
+.carousel-swiper :deep(.swiper-slide) {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+/* Swiper nav arrows – white on dark carousel background */
+.carousel-swiper :deep(.swiper-button-next),
+.carousel-swiper :deep(.swiper-button-prev) {
+  color: #fff;
+  background: rgba(0,0,0,0.4);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  --swiper-navigation-size: 18px;
+}
+.carousel-swiper :deep(.swiper-button-next):hover,
+.carousel-swiper :deep(.swiper-button-prev):hover {
+  background: rgba(0,0,0,0.65);
+}
+</style>

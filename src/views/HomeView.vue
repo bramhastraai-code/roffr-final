@@ -51,9 +51,9 @@ import FaqSection from '@/sections/homeSections/FaqSection.vue';
       <BlogsInsights />
     </FadeIn>
 
-    <FadeIn :duration="0.8">
+    <!-- <FadeIn :duration="0.8">
       <InTheNews />
-    </FadeIn>
+    </FadeIn> -->
 
     <FadeIn :duration="0.8">
       <FaqSection />

@@ -1,86 +1,66 @@
-// import { defineStore } from "pinia";
-// import { makeRequest } from "@/request/request";
-// import endpoints from "@/request/endpoints";
-// import { ref } from "vue";
+import { defineStore } from 'pinia'
+import { ref, computed, watch } from 'vue'
+import { blogs, CATEGORIES, CITIES, PROPERTY_TYPES } from '@/data/blogsData'
 
-// export const useBlogStore = defineStore("blog", () => {
-//   const blogData = ref([]);
-//   const specificBlogData = ref([])
-//   const selectedFilter = ref("all")
-//   const pageNumber = ref(1);
-//   const pageSize = ref(10);
-//   const totalpages = ref(0);
+export const useBlogStore = defineStore('blogs', () => {
+  const searchQuery    = ref('')
+  const activeCategory = ref('')
+  const activeCity     = ref('')
+  const activeType     = ref('')
+  const currentPage    = ref(1)
+  const PAGE_SIZE      = 12
 
-//   // GET ALL Blogs
-//   const getBlogData = async () => {
-//     try {
-//       const params = {
-//         pageSize: pageSize.value,
-//         pageNumber: pageNumber.value,
-//       };
-//       const response = await makeRequest(
-//         endpoints.blog,
-//         "GET",
-//         {},
-//         {},
-//         params,
-//         0
-//       );
-//       blogData.value = response?.data?.blogs;
-//       totalpages.value = response?.data?.totalPages
-//       pageSize.value = response?.data?.pageSize
-//       pageNumber.value = response?.data?.pageNumber
-//     } catch (error) {
-//       console.log("Error in fetching blogs", error);
-//     }
-//   };
+  // Reset to page 1 whenever any filter changes
+  watch([searchQuery, activeCategory, activeCity, activeType], () => {
+    currentPage.value = 1
+  })
 
+  const filteredBlogs = computed(() => {
+    let list = blogs
+    const q = searchQuery.value.trim().toLowerCase()
+    if (q) {
+      list = list.filter(b =>
+        b.title.toLowerCase().includes(q) ||
+        b.description.toLowerCase().includes(q) ||
+        b.keywords.some(k => k.toLowerCase().includes(q))
+      )
+    }
+    if (activeCategory.value) list = list.filter(b => b.category      === activeCategory.value)
+    if (activeCity.value)     list = list.filter(b => b.city          === activeCity.value)
+    if (activeType.value)     list = list.filter(b => b.property_type === activeType.value)
+    return list
+  })
 
-// //   Get Specific Blogs
-// const getBlogsByid = async(id) => {
-//     try {
-//        const response = await makeRequest(endpoints.blog, "GET", {}, {}, {}, 0, id)
-//        specificBlogData.value = response?.data
-//     } catch (error) {
-//         console.log("Error in fetching specific blogs", error);
-//     }
-// }
+  const totalPages = computed(() => Math.max(1, Math.ceil(filteredBlogs.value.length / PAGE_SIZE)))
 
+  const pagedBlogs = computed(() => {
+    const start = (currentPage.value - 1) * PAGE_SIZE
+    return filteredBlogs.value.slice(start, start + PAGE_SIZE)
+  })
 
-//   getBlogData();
-//   return {
-//     blogData,
-//     specificBlogData,
-//     getBlogsByid,
-//     pageNumber,
-//     getBlogData,
-//     totalpages,
-//     pageNumber,
-//     pageSize
-//   };
-// });
+  const hasActiveFilter = computed(
+    () => !!(searchQuery.value || activeCategory.value || activeCity.value || activeType.value)
+  )
 
+  const clearFilters = () => {
+    searchQuery.value    = ''
+    activeCategory.value = ''
+    activeCity.value     = ''
+    activeType.value     = ''
+  }
 
-import { defineStore } from "pinia";
-import { blogs } from "@/data/blogs";
-
-export const useBlogStore = defineStore("blogs", () => {
-  
-  const blogList = blogs;
-
-  // 🔥 get by slug (BEST for blogs)
-  const getBlogBySlug = (slug) => {
-    return blogList.find((blog) => blog.slug === slug);
-  };
-
-  // optional
-  const getBlogById = (id) => {
-    return blogList.find((blog) => blog.blog_id === id);
-  };
+  const getBlogBySlug = slug => blogs.find(b => b.slug === slug)
+  const getBlogById   = id   => blogs.find(b => b.id   === id)
 
   return {
-    blogList,
-    getBlogBySlug,
-    getBlogById,
-  };
-});
+    // filter state
+    searchQuery, activeCategory, activeCity, activeType,
+    currentPage, PAGE_SIZE,
+    // read-only data
+    CATEGORIES, CITIES, PROPERTY_TYPES,
+    // computed
+    filteredBlogs, totalPages, pagedBlogs, hasActiveFilter,
+    // actions
+    clearFilters, getBlogBySlug, getBlogById,
+  }
+})

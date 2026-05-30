@@ -5,6 +5,7 @@ import HeroSection from '@/sections/aboutSection2/HeroSection.vue'
 import PowerSection from '@/sections/aboutSection2/PowerSection.vue'
 import WhyChooseSection from '@/sections/aboutSection2/WhyChooseSection.vue'
 import TheCorePillars from '@/sections/aboutSection2/The Core Pillars.vue';
+import MeetTheFounders from '@/sections/aboutSection2/MeetTheFounders.vue';
 </script>
 
 <template>
@@ -19,6 +20,10 @@ import TheCorePillars from '@/sections/aboutSection2/The Core Pillars.vue';
 
     <GsapFade direction="bottom" :duration="0.7" :triggerOffset="120">
       <TheCorePillars />
+    </GsapFade>
+
+    <GsapFade direction="bottom" :duration="0.7" :triggerOffset="120">
+      <MeetTheFounders />
     </GsapFade>
 
   </main>

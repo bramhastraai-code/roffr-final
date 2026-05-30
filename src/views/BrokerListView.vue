@@ -41,6 +41,18 @@ const initials = (name) =>
     .slice(0, 2)
     .join("")
     .toUpperCase();
+
+const redactName = (name) => {
+  if (!name) return "Unnamed broker";
+  return name
+    .split(" ")
+    .map((word, i) =>
+      i === 0
+        ? word.slice(0, 3) + "*".repeat(Math.max(0, word.length - 3))
+        : word[0] + "*".repeat(Math.max(0, word.length - 1))
+    )
+    .join(" ");
+};
 </script>
 
 <template>
@@ -112,7 +124,7 @@ const initials = (name) =>
 
         <div class="p-4 text-sm text-gray-700">
           <h2 class="font-semibold text-base text-gray-900 line-clamp-1">
-            {{ broker?.name || "Unnamed broker" }}
+            {{ redactName(broker?.name) }}
           </h2>
           <p class="text-xs text-gray-500 mb-3 line-clamp-1">
             {{ broker?.firmName || "Independent" }}
@@ -128,7 +140,7 @@ const initials = (name) =>
           </div>
           <div class="flex justify-between py-1 text-xs">
             <span class="text-gray-500">Phone</span>
-            <span class="text-gray-800">{{ broker?.phoneNumber || "—" }}</span>
+            <span class="text-gray-800">**********</span>
           </div>
           <!-- <div class="flex justify-between py-1 text-xs">
             <span class="text-gray-500">Site visits</span>

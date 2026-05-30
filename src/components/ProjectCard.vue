@@ -2,7 +2,9 @@
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { fmtINRShort, WHATSAPP } from '@/data/properties.js'
-import { gbInfo } from '@/data/groupBuy.js'
+import { useGroupBuyStore } from '@/stores/groupBuyStore'
+import { useAuthStore } from '@/stores/authStore'
+import GroupBuyJoinModal from '@/components/GroupBuyJoinModal.vue'
 
 const props = defineProps({
   project: { type: Object, required: true },
@@ -11,6 +13,8 @@ const props = defineProps({
 })
 
 const router = useRouter()
+const groupBuyStore = useGroupBuyStore()
+const authStore = useAuthStore()
 
 const go = () => {
   if (!props.project._id) return
@@ -22,7 +26,37 @@ const cover = computed(() => {
   return (pics && pics[0]) || (props.project.marketingCollaterals?.[0]?.link) || null
 })
 
-const gb = computed(() => gbInfo(props.project))
+// ── Real campaign data ────────────────────────────────────────────
+const campaign = ref(null)
+const joinModalOpen = ref(false)
+
+const currentCustomerId = computed(
+  () =>
+    authStore.user?._id ||
+    authStore.currentUserData?._id ||
+    (typeof window !== 'undefined' ? localStorage.getItem('customerId') : '') ||
+    '',
+)
+
+const gb = computed(() => {
+  const c = campaign.value
+  if (!c) return null
+  const joined = Number(c.acceptedMembersCount || 0)
+  const slots = Number(c.memberLimit || 5)
+  const discountPct = Number(c.currentDiscountPercent || 0)
+  const slotsLeft = Math.max(0, slots - joined)
+  const pct = Math.round((joined / slots) * 100)
+  const base = Math.max(props.project?.minPrice || 5000000, 2000000)
+  const savings = Math.round((base * discountPct) / 100)
+  const closing = slotsLeft <= 2 && pct >= 80
+  const hot = !closing && pct >= 60
+  let ribbon = ''
+  if (closing) ribbon = `🔥 ONLY ${slotsLeft} SLOT${slotsLeft === 1 ? '' : 'S'} LEFT`
+  else if (hot) ribbon = `⚡ FILLING FAST · ${slotsLeft} slots left`
+  else if (pct >= 50) ribbon = `◉ ${slotsLeft} slots left`
+  const canJoin = c.canJoin !== false && (c.status || 'ACTIVE') === 'ACTIVE'
+  return { slots, joined, slotsLeft, pct, discountPct, discount: `${discountPct}%`, rsSavings: fmtINRShort(savings), closing, hot, ribbon, canJoin }
+})
 
 const originalPriceLabel = computed(() => {
   const min = props.project.minPrice
@@ -49,15 +83,22 @@ const dashOffset = computed(() =>
   gb.value ? CIRC * (1 - gb.value.pct / 100) : CIRC
 )
 
-
 // ── Avatar swap animation ─────────────────────────────────────────
 const step = ref(0)
 let swapInterval = null
 
-onMounted(() => {
+onMounted(async () => {
   swapInterval = setInterval(() => {
     step.value = (step.value + 1) % 3
   }, 2000)
+
+  if (props.showGroupBuy && props.project?._id) {
+    // Prefer already-loaded active campaigns (no extra network call)
+    const cached = groupBuyStore.activeCampaigns.find(
+      c => c.project?._id === props.project._id || c.projectId === props.project._id
+    )
+    campaign.value = cached ?? await groupBuyStore.fetchCampaignForProject(props.project._id)
+  }
 })
 onBeforeUnmount(() => clearInterval(swapInterval))
 
@@ -96,10 +137,14 @@ const callViaWhatsapp = (e) => {
 
 const joinGroup = (e) => {
   e.stopPropagation()
-  if (!gb.value) return
-  const g = gb.value
-  const text = `Hi, I want to join the Group Buy for ${props.project.projectName} (${props.project.venue || ''}). Status: ${g.joined}/${g.slots} joined, ${g.daysLeft} days left, ${g.discount} discount = ${g.rsSavings} savings.`
-  window.open(`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(text)}`, '_blank')
+  if (!campaign.value || !gb.value?.canJoin) return
+  joinModalOpen.value = true
+}
+
+const handleJoined = async () => {
+  if (currentCustomerId.value) {
+    await groupBuyStore.fetchMyRequests(currentCustomerId.value).catch(() => {})
+  }
 }
 </script>
 
@@ -240,52 +285,63 @@ const joinGroup = (e) => {
         </div>
       </div>
 
-      <!-- Join Group button + Heart -->
-      <div class="flex items-center gap-3 mt-5">
+      <!-- ── Pinned bottom section ──────────────────────────── -->
+      <div class="mt-auto pt-4 border-t border-gray-100">
+
+        <!-- Button: Join Group (active campaign) OR View Project Details -->
         <button
+          v-if="showGroupBuy && gb && gb.canJoin"
           @click="joinGroup"
-          class="flex-1 bg-[#EB3131] hover:bg-[#c72828] text-white text-[15px] font-bold py-3.5 rounded-2xl transition-colors duration-200 active:scale-[0.98] shadow-sm"
+          class="w-full bg-[#EB3131] hover:bg-[#c72828] text-white text-[15px] font-bold py-3.5 rounded-2xl transition-colors duration-200 active:scale-[0.98] shadow-sm"
         >
           Join Group
         </button>
-        <!-- <button
-          @click.stop
-          class="w-12 h-12 rounded-2xl border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors shrink-0"
+        <button
+          v-else
+          @click.stop="go"
+          class="w-full border border-gray-300 hover:border-[#EB3131] hover:text-[#EB3131] text-gray-700 text-[15px] font-bold py-3.5 rounded-2xl transition-colors duration-200 active:scale-[0.98]"
         >
-          <i class="pi pi-heart text-gray-400 text-base"></i>
-        </button> -->
-      </div>
+          View Project Details
+        </button>
 
-      <!-- Divider -->
-      <div class="border-t border-gray-100 mt-5 mb-4"></div>
-
-      <!-- Trust badges -->
-      <div class="flex items-center gap-5">
-        <div class="flex items-center gap-2.5">
-          <div class="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-            <i class="pi pi-verified text-green-600 text-sm"></i>
+        <!-- Trust badges -->
+        <div class="flex items-center gap-5 mt-4">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+              <i class="pi pi-verified text-green-600 text-sm"></i>
+            </div>
+            <div>
+              <div class="text-[11px] font-bold text-gray-800 leading-none">Verified Projects</div>
+              <div class="text-[10px] text-gray-400 leading-none mt-0.5">RERE Verified</div>
+            </div>
           </div>
-          <div>
-            <div class="text-[11px] font-bold text-gray-800 leading-none">Verified Projects</div>
-            <div class="text-[10px] text-gray-400 leading-none mt-0.5">RERE Verified</div>
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+              <span class="text-amber-500 font-bold text-sm">%</span>
+            </div>
+            <div>
+              <div class="text-[11px] font-bold text-gray-800 leading-none">Lowest Price</div>
+              <div class="text-[10px] text-gray-400 leading-none mt-0.5">Group Buying Power</div>
+            </div>
           </div>
         </div>
-        <div class="flex items-center gap-2.5">
-          <div class="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
-            <span class="text-amber-500 font-bold text-sm">%</span>
-          </div>
-          <div>
-            <div class="text-[11px] font-bold text-gray-800 leading-none">Lowest Price</div>
-            <div class="text-[10px] text-gray-400 leading-none mt-0.5">Group Buying Power</div>
-          </div>
-        </div>
-      </div>
 
-      <!-- Viewers -->
-      <div class="flex items-center gap-2 mt-3 text-[11px] text-gray-400">
-        <i class="pi pi-eye text-gray-300 text-xs"></i>
-        {{ viewers.toLocaleString('en-IN') }} buyers viewed this project
+        <!-- Viewers -->
+        <div class="flex items-center gap-2 mt-3 text-[11px] text-gray-400">
+          <i class="pi pi-eye text-gray-300 text-xs"></i>
+          {{ viewers.toLocaleString('en-IN') }} buyers viewed this project
+        </div>
       </div>
     </div>
   </article>
+
+  <!-- Group Buy Join Modal -->
+  <GroupBuyJoinModal
+    :open="joinModalOpen"
+    :campaign="campaign || {}"
+    :customer-id="currentCustomerId"
+    :project="project"
+    @close="joinModalOpen = false"
+    @joined="handleJoined"
+  />
 </template>

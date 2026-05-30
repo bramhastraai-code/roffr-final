@@ -3,7 +3,7 @@ import { ref } from "vue";
 import { useRouter } from "vue-router";
 import { Swiper, SwiperSlide } from "swiper/vue";
 import "swiper/css";
-import { blogs } from "@/data/blogs";
+import { blogs } from "@/data/blogsData";
 
 const router = useRouter();
 
@@ -34,9 +34,14 @@ const goToBlog = (slug) => {
   <section class="max-w-7xl mx-auto py-14 px-4 xl:px-0">
     <!-- Header -->
     <div class="flex items-center justify-between mb-7">
-      <h2 class="font-intertight font-bold text-[26px] md:text-[32px] text-gray-900">
-        Blogs & Insights
-      </h2>
+      <div>
+        <h2 class="font-intertight font-bold text-[26px] md:text-[32px] text-gray-900">
+          Blogs & Insights
+        </h2>
+        <router-link to="/blogs" class="text-sm text-[#EB3131] font-medium hover:underline mt-0.5 inline-block">
+          View all articles →
+        </router-link>
+      </div>
       <div class="flex items-center gap-2 shrink-0">
         <button
           @click="slidePrev"

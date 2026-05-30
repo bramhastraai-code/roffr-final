@@ -269,9 +269,10 @@ const handleLogout = () => { authStore.logout(); router.push("/"); isMenuOpen.va
 
       <!-- Desktop search bar + suggestions -->
       <div ref="desktopSearchRef" class="hidden md:flex relative items-center flex-1 max-w-2xl mx-auto">
+        <div class="w-full rounded-full p-[1.5px] ai-gradient-border">
         <div
-          class="w-full flex items-center gap-0 rounded-full border overflow-visible"
-          :class="isScrolled ? 'border-white/20 bg-white/10' : 'border-gray-200 bg-white'"
+          class="w-full flex items-center gap-0 rounded-full overflow-visible"
+          :class="isScrolled ? 'bg-black' : 'bg-white'"
         >
           <!-- Location picker -->
           <div ref="locationRef" class="relative shrink-0">
@@ -343,7 +344,7 @@ const handleLogout = () => { authStore.logout(); router.push("/"); isMenuOpen.va
 
           <!-- Input -->
           <div class="flex items-center gap-2 px-4 flex-1">
-            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-gradient-to-r from-violet-500 to-blue-500 text-white leading-none shrink-0 tracking-wide">AI</span>
+            <svg class="w-4 h-4 shrink-0 text-purple-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c0 0 1.5 5.5 4 7.5S23 12 23 12s-4.5 1.5-7 3.5S12 22 12 22s-1.5-5.5-4-7.5S1 12 1 12s4.5-1.5 7-3.5S12 2 12 2z"/></svg>
             <input
               v-model="searchInput"
               @keyup.enter="goToResults"
@@ -363,11 +364,12 @@ const handleLogout = () => { authStore.logout(); router.push("/"); isMenuOpen.va
             </button>
             <button
               @click="goToResults"
-              class="shrink-0 h-8 w-8 rounded-full bg-[#EB3131] text-white text-sm flex items-center justify-center hover:bg-[#c72828] transition-colors ml-1"
+              class="shrink-0 h-8 px-4 rounded-full bg-gradient-to-r from-purple-500 to-rose-500 text-white text-sm font-semibold flex items-center justify-center hover:opacity-90 transition-opacity ml-1 whitespace-nowrap"
             >
-              <i class="pi pi-search"></i>
+              Ask AI
             </button>
           </div>
+        </div>
         </div>
 
         <!-- Desktop suggestions dropdown -->
@@ -450,11 +452,12 @@ const handleLogout = () => { authStore.logout(); router.push("/"); isMenuOpen.va
 
     <!-- Mobile search bar (below topbar, md:hidden) -->
     <div ref="mobileSearchRef" class="md:hidden px-4 pb-3 relative">
+      <div class="rounded-full p-[1.5px] ai-gradient-border">
       <div
-        class="flex items-center gap-2 px-4 py-2 rounded-full border"
-        :class="isScrolled ? 'border-white/20 bg-white/10' : 'border-gray-200 bg-white'"
+        class="flex items-center gap-2 px-4 py-2 rounded-full"
+        :class="isScrolled ? 'bg-black' : 'bg-white'"
       >
-        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-gradient-to-r from-violet-500 to-blue-500 text-white leading-none shrink-0 tracking-wide">AI</span>
+        <svg class="w-4 h-4 shrink-0 text-purple-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c0 0 1.5 5.5 4 7.5S23 12 23 12s-4.5 1.5-7 3.5S12 22 12 22s-1.5-5.5-4-7.5S1 12 1 12s4.5-1.5 7-3.5S12 2 12 2z"/></svg>
         <input
           v-model="searchInput"
           @keyup.enter="goToResults"
@@ -474,10 +477,11 @@ const handleLogout = () => { authStore.logout(); router.push("/"); isMenuOpen.va
         </button>
         <button
           @click="goToResults"
-          class="shrink-0 h-7 w-7 rounded-full bg-[#EB3131] text-white text-xs flex items-center justify-center hover:bg-[#c72828] transition-colors ml-1"
+          class="shrink-0 h-7 px-3 rounded-full bg-gradient-to-r from-purple-500 to-rose-500 text-white text-xs font-semibold flex items-center justify-center hover:opacity-90 transition-opacity ml-1 whitespace-nowrap"
         >
-          <i class="pi pi-search"></i>
+          Ask AI
         </button>
+      </div>
       </div>
 
       <!-- Mobile suggestions dropdown -->
@@ -546,6 +550,18 @@ const handleLogout = () => { authStore.logout(); router.push("/"); isMenuOpen.va
 </template>
 
 <style scoped>
+@keyframes gradient-shift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.ai-gradient-border {
+  background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899, #ef4444, #f97316, #a855f7, #6366f1);
+  background-size: 300% 300%;
+  animation: gradient-shift 4s ease infinite;
+}
+
 .fade-enter-active, .fade-leave-active { transition: opacity 0.25s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 

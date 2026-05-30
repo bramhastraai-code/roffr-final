@@ -10,6 +10,7 @@ import ProjectDetailView from '@/views/ProjectDetailView.vue'
 import PropertyDetailView from '@/views/PropertyDetailView.vue'
 import PropertyProjectView from '@/views/PropertyProjectView.vue'
 import BlogDetails from '@/views/BlogDetails.vue'
+import BlogsView from '@/views/BlogsView.vue'
 import ResourceView from '@/views/ResourceView.vue'
 import ContactusView from '@/views/ContactusView.vue'
 import CaseStudyDetails from '@/views/CaseStudyDetails.vue'
@@ -168,6 +169,11 @@ const router = createRouter({
           name: "channel-partner",
           path: "/channel-partner",
           component: ChannelPartnerView
+        },
+        {
+          name: "blogs",
+          path: "/blogs",
+          component: BlogsView
         },
         {
           name: "blog-details",
