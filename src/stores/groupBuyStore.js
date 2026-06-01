@@ -7,12 +7,17 @@ export const useGroupBuyStore = defineStore("groupBuy", () => {
   const activeCampaigns = ref([]);
   const myRequests = ref([]);
   const loading = ref(false);
+  // True once fetchActiveCampaigns has completed at least once.
+  // ProjectCard uses this to skip individual by-project calls when the global
+  // list is already loaded and the project isn't in it.
+  const campaignsFetched = ref(false);
 
   const fetchActiveCampaigns = async () => {
     loading.value = true;
     try {
       const res = await makeRequest(endpoints.groupBuyActive, "GET");
       activeCampaigns.value = res?.data || [];
+      campaignsFetched.value = true;
     } catch (e) {
       console.error("fetchActiveCampaigns failed", e);
       activeCampaigns.value = [];
@@ -98,6 +103,7 @@ export const useGroupBuyStore = defineStore("groupBuy", () => {
     activeCampaigns,
     myRequests,
     loading,
+    campaignsFetched,
     fetchActiveCampaigns,
     fetchCampaignForProject,
     createRequest,

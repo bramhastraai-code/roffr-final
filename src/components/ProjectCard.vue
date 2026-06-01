@@ -93,11 +93,18 @@ onMounted(async () => {
   }, 2000)
 
   if (props.showGroupBuy && props.project?._id) {
-    // Prefer already-loaded active campaigns (no extra network call)
     const cached = groupBuyStore.activeCampaigns.find(
-      c => c.project?._id === props.project._id || c.projectId === props.project._id
+      c => (c.projectId?._id ?? c.projectId) === props.project._id
     )
-    campaign.value = cached ?? await groupBuyStore.fetchCampaignForProject(props.project._id)
+    if (cached) {
+      // Found in the already-fetched global list — no network call needed
+      campaign.value = cached
+    } else if (!groupBuyStore.campaignsFetched) {
+      // Global list not loaded yet — fall back to individual fetch
+      campaign.value = await groupBuyStore.fetchCampaignForProject(props.project._id)
+    }
+    // If campaignsFetched is true and project isn't in the list, it has no
+    // active campaign — skip the call entirely
   }
 })
 onBeforeUnmount(() => clearInterval(swapInterval))

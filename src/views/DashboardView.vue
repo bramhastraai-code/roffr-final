@@ -34,13 +34,7 @@ const activeTab = ref("Dashboard");
 
 const menuItems = [
   { name: "Dashboard", icon: "pi pi-th-large" },
-  { name: "Profile", icon: "pi pi-user" },
-  { name: "My project", icon: "pi pi-building" },
-  { name: "My Properties", icon: "pi pi-home" },
-  { name: "Favorites", icon: "pi pi-heart" },
-  { name: "My Visits", icon: "pi pi-map-marker" },
-  { name: "My Group Buys", icon: "pi pi-users" },
-  { name: "Feedback", icon: "pi pi-thumbs-up" },
+  { name: "Profile",   icon: "pi pi-user" },
 ];
 
 // ──────────────────────────────────────────────────────────
@@ -216,16 +210,27 @@ const handleFileUpload = (event) => {
   }
 };
 
-const saveProfile = () => {
-  if (currentUserData.value) {
-    currentUserData.value.name = profileForm.value.fullName;
-    currentUserData.value.email = profileForm.value.email;
-    currentUserData.value.pincode = profileForm.value.pincode;
-    currentUserData.value.city = profileForm.value.city;
-    currentUserData.value.state = profileForm.value.state;
+const savingProfile = ref(false);
+const profileSaveMsg = ref(""); // "success" | "error" | ""
 
-    localStorage.setItem("user", JSON.stringify(user.value));
-    alert("Profile updated successfully!");
+const saveProfile = async () => {
+  if (!customerId.value) return;
+  savingProfile.value = true;
+  profileSaveMsg.value = "";
+  try {
+    await authStore.updateProfile(customerId.value, {
+      name:        profileForm.value.fullName,
+      email:       profileForm.value.email,
+      phoneNumber: profileForm.value.mobile,
+      pincode:     profileForm.value.pincode,
+      city:        profileForm.value.city,
+      state:       profileForm.value.state,
+    });
+    profileSaveMsg.value = "success";
+  } catch {
+    profileSaveMsg.value = "error";
+  } finally {
+    savingProfile.value = false;
   }
 };
 
@@ -483,29 +488,44 @@ const submitFeedback = () => {
         <div
           class="bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[600px] card-mask"
         >
-          <!-- Sidebar -->
-          <div
-            class="w-full md:w-72 p-8 border-r border-gray-300 relative z-10"
-          >
-            <div class="space-y-2 mt-12">
+          <!-- Sidebar / Nav -->
+          <div class="w-full md:w-72 md:p-8 md:border-r border-gray-200 relative z-10">
+
+            <!-- Mobile: horizontal pill tabs -->
+            <div class="flex md:hidden overflow-x-auto gap-2 px-4 pt-32 pb-3 border-b border-gray-100 scrollbar-hide mt-10 justify-center">
               <button
                 v-for="item in menuItems"
                 :key="item.name"
-                @click="
-                  activeTab = item.name;
-                  showAddPropertyForm = false;
-                "
-                class="w-full flex items-center gap-4 px-4 py-4 rounded-xl transition-all duration-200 group"
-                :class="
-                  activeTab === item.name
-                    ? 'text-[#FF5722]'
-                    : 'text-gray-500 hover:bg-gray-50'
-                "
+                @click="activeTab = item.name; showAddPropertyForm = false;"
+                class="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap transition-all shrink-0 border"
+                :class="activeTab === item.name
+                  ? 'bg-[#FF5722] text-white border-[#FF5722]'
+                  : 'text-gray-500 border-gray-200 hover:border-gray-400'"
+              >
+                <i :class="[item.icon, 'text-sm']"></i>
+                {{ item.name }}
+              </button>
+              <button
+                @click="handleLogout"
+                class="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap shrink-0 border border-gray-200 text-gray-500"
+              >
+                <i class="pi pi-sign-out text-sm"></i>
+                Logout
+              </button>
+            </div>
+
+            <!-- Desktop: vertical sidebar -->
+            <div class="hidden md:block space-y-2 mt-12">
+              <button
+                v-for="item in menuItems"
+                :key="item.name"
+                @click="activeTab = item.name; showAddPropertyForm = false;"
+                class="w-full flex items-center gap-4 px-4 py-4 rounded-xl transition-all duration-200"
+                :class="activeTab === item.name ? 'text-[#FF5722]' : 'text-gray-500 hover:bg-gray-50'"
               >
                 <i :class="[item.icon, 'text-xl']"></i>
                 <span class="font-medium text-lg">{{ item.name }}</span>
               </button>
-
               <button
                 @click="handleLogout"
                 class="w-full flex items-center gap-4 px-4 py-4 rounded-xl text-gray-500 hover:bg-gray-50 transition-all duration-200 mt-8"
@@ -519,7 +539,7 @@ const submitFeedback = () => {
           <!-- Main Content -->
           <div class="flex-1 p-8 md:p-12 relative">
             <!-- Dashboard Content -->
-            <div v-if="activeTab === 'Dashboard'" class="mt-32 md:mt-24">
+            <div v-if="activeTab === 'Dashboard'" class="mt-6 md:mt-24">
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
                 <!-- Left Column: ID Card & Download -->
                 <div
@@ -580,14 +600,14 @@ const submitFeedback = () => {
                   </div>
 
                   <!-- Download Button -->
-                  <div class="mt-6">
+                  <!-- <div class="mt-6">
                     <button
                       class="bg-[#FF5722] text-white font-outfit font-bold py-4 px-8 rounded-xl shadow-lg hover:bg-[#F4511E] transition-all w-full transform hover:-translate-y-0.5 flex items-center justify-center gap-2"
                     >
                       <i class="pi pi-download"></i>
                       Download ID Card
                     </button>
-                  </div>
+                  </div> -->
                 </div>
 
                 <!-- Right Column: Stats -->
@@ -648,7 +668,7 @@ const submitFeedback = () => {
             </div>
 
             <!-- Profile Content -->
-            <div v-if="activeTab === 'Profile'" class="mt-32 md:mt-24">
+            <div v-if="activeTab === 'Profile'" class="mt-6 md:mt-24">
               <div class="max-w-3xl mx-auto">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <!-- Full Name -->
@@ -730,13 +750,21 @@ const submitFeedback = () => {
                   </div>
                 </div>
 
-                <div class="mt-12 flex justify-center">
+                <div class="mt-12 flex flex-col items-center gap-3">
                   <button
                     @click="saveProfile"
-                    class="bg-[#FF5722] text-white font-bold py-3 px-12 rounded-lg shadow-lg hover:bg-[#F4511E] transition-all transform hover:-translate-y-0.5"
+                    :disabled="savingProfile"
+                    class="bg-[#FF5722] text-white font-bold py-3 px-12 rounded-lg shadow-lg hover:bg-[#F4511E] transition-all transform hover:-translate-y-0.5 disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
                   >
-                    Save Details
+                    <i v-if="savingProfile" class="pi pi-spin pi-spinner text-sm"></i>
+                    {{ savingProfile ? "Saving…" : "Save Details" }}
                   </button>
+                  <p v-if="profileSaveMsg === 'success'" class="text-sm text-green-600 font-medium flex items-center gap-1">
+                    <i class="pi pi-check-circle"></i> Profile updated successfully
+                  </p>
+                  <p v-if="profileSaveMsg === 'error'" class="text-sm text-red-500 font-medium flex items-center gap-1">
+                    <i class="pi pi-times-circle"></i> Failed to update — please try again
+                  </p>
                 </div>
               </div>
             </div>
@@ -1625,6 +1653,9 @@ const submitFeedback = () => {
 </template>
 
 <style scoped>
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
 .text-shadow-sm {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }

@@ -305,27 +305,27 @@ const handleCompare = () => {
               >
                 <i class="pi pi-share-alt text-xs"></i> Share
               </button>
-              <button
+              <!-- <button
                 v-if="truthy(actions.compare_enabled)"
                 @click="handleCompare"
                 class="px-3 py-1.5 rounded-full border border-gray-300 hover:border-gray-900 flex items-center gap-1.5"
               >
                 <i class="pi pi-sliders-h text-xs"></i> Compare
-              </button>
-              <button
+              </button> -->
+              <!-- <button
                 v-if="truthy(actions.shortlist_enabled)"
                 @click="handleShortlist"
                 class="px-3 py-1.5 rounded-full border border-gray-300 hover:border-orange-400 hover:text-orange-600 flex items-center gap-1.5"
               >
                 <i class="pi pi-heart text-xs"></i> Shortlist
-              </button>
-              <button
+              </button> -->
+              <!-- <button
                 v-if="truthy(actions.make_offer_enabled)"
                 @click="openModal('offer')"
                 class="px-3 py-1.5 rounded-full border border-gray-300 hover:border-gray-900 flex items-center gap-1.5"
               >
                 <i class="pi pi-tag text-xs"></i> Make Offer
-              </button>
+              </button> -->
               <button
                 v-if="truthy(actions.request_visit_enabled)"
                 @click="openModal('visit')"
@@ -333,13 +333,13 @@ const handleCompare = () => {
               >
                 <i class="pi pi-calendar text-xs"></i> Request Visit
               </button>
-              <button
+              <!-- <button
                 v-if="truthy(actions.contact_agent_enabled)"
                 @click="openModal('contact')"
                 class="px-3 py-1.5 rounded-full border border-gray-300 hover:border-gray-900 flex items-center gap-1.5"
               >
                 <i class="pi pi-phone text-xs"></i> Contact Agent
-              </button>
+              </button> -->
             </div>
           </div>
 

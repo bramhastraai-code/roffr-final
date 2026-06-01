@@ -119,6 +119,25 @@ export const useAuthStore = defineStore("auth", () => {
     }
   };
 
+  const updateProfile = async (id, data) => {
+    const response = await makeRequest(
+      endpoints.updateCustomer,
+      "PATCH",
+      data,
+      {},
+      {},
+      0,
+      id,
+    );
+    const updated = response?.data;
+    if (updated) {
+      currentUserData.value = { ...currentUserData.value, ...updated };
+      user.value = { ...(user.value || {}), ...updated };
+      localStorage.setItem(STORAGE_KEYS.user, JSON.stringify(user.value));
+    }
+    return response;
+  };
+
   const logout = () => {
     user.value = null;
     token.value = null;
@@ -140,6 +159,7 @@ export const useAuthStore = defineStore("auth", () => {
     verifyOtp,
     setSession,
     getCurrentUserData,
+    updateProfile,
     logout,
     updateUserImage: (imageUrl) => {
       if (user.value) {

@@ -374,46 +374,127 @@ onMounted(async () => {
 
       <div
         v-else
-        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"
       >
         <article
           v-for="item in items"
           :key="item.id"
           @click="goToProperty(item)"
-          class="rounded-2xl bg-white border shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition"
+          class="group rounded-3xl border border-gray-200 bg-white shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer flex flex-col overflow-hidden"
         >
-          <div class="relative h-48 overflow-hidden bg-gray-100">
+          <!-- Image -->
+          <div class="relative h-56 bg-gray-100 overflow-hidden shrink-0">
             <img
               v-if="item.image"
               :src="item.image"
               :alt="item.title"
-              class="w-full h-full object-cover"
+              class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
             />
             <div
               v-else
-              class="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900"
-            ></div>
-            <span class="absolute top-3 left-3 text-[10px] uppercase tracking-wider px-2 py-1 rounded-full font-semibold bg-blue-50 text-blue-600 border border-blue-200">
-              Property
+              class="w-full h-full bg-gradient-to-br from-slate-100 to-slate-200 flex flex-col items-center justify-center gap-2"
+            >
+              <i class="pi pi-home text-4xl text-slate-400"></i>
+              <span class="text-xs text-slate-400 font-medium">No photo available</span>
+            </div>
+
+            <!-- Gradient overlay -->
+            <div class="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none"></div>
+
+            <!-- Top badges -->
+            <div class="absolute top-3 left-3 flex items-center gap-1.5">
+              <span class="text-[10px] uppercase font-bold px-2.5 py-1 rounded-md bg-white/90 text-gray-700 backdrop-blur-sm shadow-sm">
+                {{ item.unitType || "Property" }}
+              </span>
+              <span
+                v-if="item.doc?.visit_details?.showing_status"
+                class="text-[10px] font-semibold px-2.5 py-1 rounded-md bg-blue-500 text-white shadow-sm"
+              >
+                {{ item.doc.visit_details.showing_status }}
+              </span>
+            </div>
+
+            <!-- BHK pill bottom-right -->
+            <span
+              v-if="item.bhk"
+              class="absolute bottom-3 right-3 text-[11px] font-bold px-2.5 py-1 rounded-full bg-black/60 text-white backdrop-blur-sm"
+            >
+              {{ item.bhk }}
             </span>
           </div>
-          <div class="p-4">
-            <h3 class="text-sm font-semibold text-gray-900 line-clamp-2">
+
+          <!-- Body -->
+          <div class="px-5 pt-4 pb-5 flex flex-col flex-1">
+
+            <!-- Title + location -->
+            <h3 class="font-bold text-gray-900 text-[17px] leading-snug line-clamp-1">
               {{ item.title }}
             </h3>
-            <p class="text-xs text-gray-500 mt-1 line-clamp-1">
-              {{ item.subtitle || "—" }}
-            </p>
-            <p class="text-xs text-gray-700 mt-2">
-              <span v-if="item.bhk" class="mr-2">{{ item.bhk }}</span>
-              <span v-if="item.unitType" class="text-gray-500">{{ item.unitType }}</span>
-            </p>
-            <button
-              class="mt-3 w-full bg-black text-white text-xs py-2 rounded-full hover:bg-gray-800"
-              @click.stop="goToProperty(item)"
+            <div class="flex items-center gap-1.5 mt-1.5 mb-4">
+              <i class="pi pi-map-marker text-gray-400 text-xs shrink-0"></i>
+              <span class="text-sm text-gray-500 truncate">{{ item.subtitle || "Location not specified" }}</span>
+            </div>
+
+            <!-- Divider -->
+            <div class="border-t border-gray-100 mb-3"></div>
+
+            <!-- Specs row -->
+            <div class="flex items-center gap-4 text-xs text-gray-600 mb-3 flex-wrap">
+              <div v-if="item.bhk" class="flex items-center gap-1.5">
+                <i class="pi pi-th-large text-gray-400 text-[11px]"></i>
+                <span class="font-semibold">{{ item.bhk }}</span>
+              </div>
+              <div
+                v-if="item.doc?.property_details?.area?.usable_area?.value"
+                class="flex items-center gap-1.5"
+              >
+                <i class="pi pi-arrows-alt text-gray-400 text-[11px]"></i>
+                <span class="font-semibold">
+                  {{ item.doc.property_details.area.usable_area.value }}
+                  {{ item.doc.property_details.area.usable_area.unit || "sqft" }}
+                </span>
+              </div>
+              <div
+                v-if="item.doc?.property_details?.structure?.bathrooms"
+                class="flex items-center gap-1.5"
+              >
+                <i class="pi pi-droplet text-gray-400 text-[11px]"></i>
+                <span class="font-semibold">{{ item.doc.property_details.structure.bathrooms }} Bath</span>
+              </div>
+              <div
+                v-if="item.doc?.property_details?.structure?.parkings"
+                class="flex items-center gap-1.5"
+              >
+                <i class="pi pi-car text-gray-400 text-[11px]"></i>
+                <span class="font-semibold">{{ item.doc.property_details.structure.parkings }} Parking</span>
+              </div>
+            </div>
+
+            <!-- Price -->
+            <div v-if="item.doc?.listing_details?.price" class="mb-2">
+              <span class="text-xl font-bold text-gray-900">
+                ₹ {{ Number(item.doc.listing_details.price).toLocaleString("en-IN") }}
+              </span>
+            </div>
+
+            <!-- Available from -->
+            <p
+              v-if="item.doc?.visit_details?.available_from"
+              class="text-xs text-gray-400 mb-2 flex items-center gap-1"
             >
-              View details
-            </button>
+              <i class="pi pi-calendar text-[10px]"></i>
+              Available {{ item.doc.visit_details.available_from }}
+            </p>
+
+            <!-- Button -->
+            <div class="mt-auto pt-4 border-t border-gray-100">
+              <button
+                class="w-full bg-[#EB3131] hover:bg-[#c72828] text-white text-[15px] font-bold py-3 rounded-2xl transition-colors duration-200 active:scale-[0.98]"
+                @click.stop="goToProperty(item)"
+              >
+                View Property
+              </button>
+            </div>
           </div>
         </article>
       </div>

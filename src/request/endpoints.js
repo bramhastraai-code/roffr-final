@@ -21,7 +21,7 @@ const endpoints = {
   broker: "/users",
   builder: "/company",
   builderById: "/company/company",
-  propertyById: "/properties/property",
+  propertyById: "/properties/roffer",
   amenity: "/amenities/amenity-list",
   login: "/customers/login", // Keeping for reference, though unused
 
