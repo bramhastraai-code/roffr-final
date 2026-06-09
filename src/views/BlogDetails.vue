@@ -27,6 +27,7 @@ const blog = computed(() => blogStore.getBlogBySlug(route.params.slug));
           :src="blog.img"
           :alt="blog.title"
           class="h-[450px] w-full object-cover rounded-lg mt-4"
+          @error="$event.target.src='/dummy/dummy-case2.webp'"
         />
       </div>
 

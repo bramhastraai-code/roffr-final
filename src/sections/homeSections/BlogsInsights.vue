@@ -94,6 +94,7 @@ const goToBlog = (slug) => {
               :src="blog.img"
               :alt="blog.title"
               class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              @error="$event.target.src='/dummy/dummy-case2.webp'"
             />
             <!-- Category pill over image bottom-left -->
             <span class="absolute bottom-3 left-3 bg-white/90 backdrop-blur-sm text-[10px] font-semibold text-gray-600 uppercase tracking-wider px-2.5 py-1 rounded-full">
