@@ -38,6 +38,12 @@ const endpoints = {
   s3UploadOne: "/s3/upload",
   s3UploadMany: "/s3/upload/multiple",
 
+  // Marketplace curation (super-admin-approved feeds)
+  // Entity is `projects` | `builders` | `brokers` | `properties`.
+  marketplaceList: (entity) => `/marketplace/${entity}`,
+  marketplaceFeatured: (entity) => `/marketplace/${entity}/featured`,
+  marketplaceTrending: (entity) => `/marketplace/${entity}/trending`,
+
   // Group buying
   groupBuyActive: "/group-buy/campaigns/public/active",
   groupBuyByProject: "/group-buy/campaigns/public/by-project", // append /:projectId
