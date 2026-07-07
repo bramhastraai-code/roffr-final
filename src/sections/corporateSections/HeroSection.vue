@@ -9,7 +9,7 @@ const sectionRef = ref(null);
 const leftContentRef = ref(null);
 const rightImageRef = ref(null);
 
-onMounted(() => {
+onMounted(() => { 
   const ctx = gsap.context(() => {
     // Left column staggered entrance
     gsap.fromTo(leftContentRef.value.children,
