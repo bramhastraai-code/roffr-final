@@ -15,6 +15,8 @@ import GroupBuyCard from "@/components/GroupBuyCard.vue";
 import GroupBuyJoinModal from "@/components/GroupBuyJoinModal.vue";
 import VisitAssistCard from "@/components/VisitAssistCard.vue";
 import ProjectReels from "@/components/ProjectReels.vue";
+import { bhkConfigsOf } from "@/utils/bhkDisplay";
+import { amenityMeta } from "@/utils/amenityDisplay";
 
 const route = useRoute();
 const router = useRouter();
@@ -140,10 +142,11 @@ const whyConsiderBuying = computed(() => {
   const w = project.value?.whyConsiderBuying;
   return Array.isArray(w) ? w.filter(Boolean) : [];
 });
-const propertyConfigs = computed(() => {
-  const c = project.value?.PropertyConfig;
-  return Array.isArray(c) ? c.filter(Boolean) : [];
-});
+// Real PropertyConfig when populated, id-derived fallback otherwise —
+// matches what the cards show (see docs/PLACEHOLDER_DATA.md)
+const propertyConfigs = computed(() =>
+  project.value?._id ? bhkConfigsOf(project.value) : [],
+);
 const brochureUrl = computed(() => {
   const b = project.value?.brochure;
   if (!b) return "";
@@ -522,9 +525,13 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
                   </p>
                 </div>
                 <div>
-                  <p class="text-[11px] text-gray-400 mb-0.5">{{ project.projectStatus || "Under Construction" }}</p>
+                  <p class="text-[11px] text-gray-400 mb-0.5">
+                    {{ project.readyToPossessDate ? project.projectStatus : "Status" }}
+                  </p>
                   <p class="text-sm font-semibold text-gray-800">
-                    Possession in {{ project.readyToPossessDate || "—" }}
+                    {{ project.readyToPossessDate
+                      ? `Possession in ${project.readyToPossessDate}`
+                      : (project.projectStatus || "Under Construction") }}
                   </p>
                 </div>
                 <div>
@@ -533,7 +540,7 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
                     {{ project.avgPrice ? formatINR(project.avgPrice) + "/sq.ft" : "—" }}
                   </p>
                 </div>
-                <div>
+                <div v-if="carpetAreaLabel !== '—'">
                   <p class="text-[11px] text-gray-400 mb-0.5">RERA Carpet Area</p>
                   <p class="text-sm font-semibold text-gray-800">{{ carpetAreaLabel }}</p>
                 </div>
@@ -787,14 +794,14 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
                   {{ project.projectReraNumber || project.reraNo || "—" }}
                 </dd>
               </div>
-              <div class="flex justify-between gap-3">
+              <div v-if="carpetAreaLabel !== '—'" class="flex justify-between gap-3">
                 <dt class="text-gray-500">Carpet area</dt>
                 <dd class="text-gray-900 font-medium">{{ carpetAreaLabel }}</dd>
               </div>
-              <div class="flex justify-between gap-3">
+              <div v-if="project.readyToPossessDate" class="flex justify-between gap-3">
                 <dt class="text-gray-500">Possession</dt>
                 <dd class="text-gray-900 font-medium">
-                  {{ project.readyToPossessDate || "—" }}
+                  {{ project.readyToPossessDate }}
                 </dd>
               </div>
               <div class="flex justify-between gap-3">
@@ -862,12 +869,17 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
             </h3>
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               <div
-                v-for="amenity in amenities"
+                v-for="(amenity, idx) in amenities"
                 :key="amenity"
-                class="bg-white border rounded-xl px-4 py-3 text-center text-sm font-medium text-gray-800 shadow-sm flex items-center justify-center gap-2"
+                class="amenity-tile group bg-white border border-gray-200 rounded-2xl px-4 py-5 text-center flex flex-col items-center gap-3 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-default"
+                :class="amenityMeta(amenity).bd"
+                :style="{ animationDelay: `${Math.min(idx, 12) * 0.05}s` }"
               >
-                <i class="pi pi-check text-orange-500 text-xs"></i>
-                {{ amenity }}
+                <span
+                  class="w-14 h-14 rounded-2xl flex items-center justify-center text-[26px] group-hover:scale-110 transition-transform duration-300"
+                  :class="amenityMeta(amenity).bg"
+                >{{ amenityMeta(amenity).emoji }}</span>
+                <span class="text-[13px] font-semibold text-gray-800 capitalize leading-snug">{{ amenity }}</span>
               </div>
             </div>
           </div>
@@ -880,16 +892,22 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
               <div
                 v-for="(f, i) in facilities"
                 :key="i"
-                class="bg-white border rounded-xl px-4 py-3 text-center text-sm flex flex-col items-center gap-2"
+                class="amenity-tile group bg-white border border-gray-200 rounded-2xl px-4 py-5 text-center flex flex-col items-center gap-3 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-default"
+                :class="amenityMeta(f?.name).bd"
+                :style="{ animationDelay: `${Math.min(i, 12) * 0.05}s` }"
               >
                 <img
                   v-if="f?.iconImage"
                   :src="f.iconImage"
                   :alt="f.name"
-                  class="h-8 w-8 object-contain"
+                  class="h-14 w-14 object-contain group-hover:scale-110 transition-transform duration-300"
                 />
-                <i v-else class="pi pi-map text-orange-500"></i>
-                <span class="text-gray-800 font-medium">{{ f?.name || "—" }}</span>
+                <span
+                  v-else
+                  class="w-14 h-14 rounded-2xl flex items-center justify-center text-[26px] group-hover:scale-110 transition-transform duration-300"
+                  :class="amenityMeta(f?.name).bg"
+                >{{ amenityMeta(f?.name).emoji }}</span>
+                <span class="text-[13px] font-semibold text-gray-800 capitalize leading-snug">{{ f?.name || "—" }}</span>
               </div>
             </div>
           </div>
@@ -996,9 +1014,9 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
               Reach the builder
             </h3>
             <div class="space-y-3">
-              <div>
+              <div v-if="project.builderContact">
                 <p class="text-[11px] uppercase tracking-wider text-gray-500">Phone</p>
-                <p class="text-gray-900">{{ project.builderContact || "—" }}</p>
+                <p class="text-gray-900">{{ project.builderContact }}</p>
               </div>
               <div>
                 <p class="text-[11px] uppercase tracking-wider text-gray-500">RERA</p>
@@ -1335,5 +1353,14 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
 .carousel-swiper :deep(.swiper-button-next):hover,
 .carousel-swiper :deep(.swiper-button-prev):hover {
   background: rgba(0,0,0,0.65);
+}
+
+/* Amenity tiles: staggered pop-in */
+.amenity-tile {
+  animation: amenity-enter 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes amenity-enter {
+  from { opacity: 0; transform: translateY(14px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 </style>

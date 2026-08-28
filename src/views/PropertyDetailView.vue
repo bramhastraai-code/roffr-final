@@ -9,6 +9,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useMyDashboardStore } from "@/stores/myDashboardStore";
 import VisitAssistCard from "@/components/VisitAssistCard.vue";
 import { useBrokerStore } from "@/stores/brokerStore";
+import { amenityMeta } from "@/utils/amenityDisplay";
 
 const route = useRoute();
 const router = useRouter();
@@ -82,7 +83,9 @@ const TAB_DEFS = [
 ];
 
 const visibleTabs = computed(() =>
-  TAB_DEFS.filter((t) => truthy(tabs.value[t.key])),
+  TAB_DEFS.filter((t) => truthy(tabs.value[t.key]))
+    // No listing carries a linked project — hide the dead tab until one does
+    .filter((t) => t.key !== "project" || property.value?.projectId),
 );
 
 const activeTab = ref("");
@@ -120,8 +123,29 @@ const mapEmbedSrc = computed(() => {
 
 const carpetAreaLabel = computed(() => {
   const a = property.value?.property_details?.area?.usable_area || {};
-  if (!a.value && !a.unit) return "—";
-  return `${a.value ?? "—"} ${a.unit ?? "sqft"}`;
+  if (a.value) return `${a.value} ${a.unit ?? "sqft"}`;
+  // Top-level area_sqft is filled far more often than the nested field
+  const flat = Number(property.value?.area_sqft || 0);
+  if (flat) return `${flat} sqft`;
+  return "—";
+});
+
+// The real price lives in the top-level `price` field (100% filled);
+// listing_details.price is empty on every listing.
+const priceLabel = computed(() => {
+  const n = Number(property.value?.price ?? property.value?.listing_details?.price ?? 0);
+  if (!n) return "";
+  if (n >= 10000000) return `₹ ${(n / 10000000).toFixed(2)} Cr`;
+  if (n >= 100000) return `₹ ${(n / 100000).toFixed(1)} L`;
+  return `₹ ${n.toLocaleString("en-IN")}`;
+});
+
+const floorLabel = computed(() => {
+  const fl = property.value?.floor_number;
+  const total = property.value?.total_floors;
+  if (fl == null && !total) return "";
+  if (fl != null && total) return `${fl} of ${total}`;
+  return fl != null ? String(fl) : `${total} floors`;
 });
 
 // Prefilled question for the RIOS AI page (Ask R AI button)
@@ -129,7 +153,7 @@ const riosQuery = computed(() => {
   const p = property.value || {};
   const det = p.property_details || {};
   const loc = p.location || {};
-  const price = Number(p.listing_details?.price || 0);
+  const price = Number(p.price ?? p.listing_details?.price ?? 0);
   return [
     `Give me an overview of the property "${p.title || "this property"}"`,
     [loc.locality, loc.city].filter(Boolean).length
@@ -404,6 +428,11 @@ const handleCompare = () => {
             </div>
 
             <aside class="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col gap-4 shadow-sm">
+              <div v-if="priceLabel">
+                <p class="text-xs uppercase tracking-wider text-gray-500">Price</p>
+                <p class="text-3xl font-bold text-gray-900 leading-tight">{{ priceLabel }}</p>
+              </div>
+
               <div>
                 <p class="text-xs uppercase tracking-wider text-gray-500">Configuration</p>
                 <p class="text-2xl font-semibold text-gray-900">
@@ -439,6 +468,14 @@ const handleCompare = () => {
                   <p class="font-medium text-gray-800">
                     {{ property?.listing_details?.listing_date || "—" }}
                   </p>
+                </div>
+                <div v-if="property?.furnishing">
+                  <p class="text-[11px] uppercase tracking-wider text-gray-500">Furnishing</p>
+                  <p class="font-medium text-gray-800 capitalize">{{ property.furnishing }}</p>
+                </div>
+                <div v-if="floorLabel">
+                  <p class="text-[11px] uppercase tracking-wider text-gray-500">Floor</p>
+                  <p class="font-medium text-gray-800">{{ floorLabel }}</p>
                 </div>
               </div>
 
@@ -557,12 +594,17 @@ const handleCompare = () => {
             class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3"
           >
             <div
-              v-for="amenity in highlights"
+              v-for="(amenity, idx) in highlights"
               :key="amenity"
-              class="bg-white border rounded-xl px-4 py-3 text-center text-sm font-medium text-gray-800 shadow-sm flex items-center justify-center gap-2"
+              class="amenity-tile group bg-white border border-gray-200 rounded-2xl px-4 py-5 text-center flex flex-col items-center gap-3 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-default"
+              :class="amenityMeta(amenity).bd"
+              :style="{ animationDelay: `${Math.min(idx, 12) * 0.05}s` }"
             >
-              <i class="pi pi-check text-orange-500 text-xs"></i>
-              {{ amenity }}
+              <span
+                class="w-14 h-14 rounded-2xl flex items-center justify-center text-[26px] group-hover:scale-110 transition-transform duration-300"
+                :class="amenityMeta(amenity).bg"
+              >{{ amenityMeta(amenity).emoji }}</span>
+              <span class="text-[13px] font-semibold text-gray-800 capitalize leading-snug">{{ amenity }}</span>
             </div>
           </div>
         </div>
@@ -923,3 +965,14 @@ const handleCompare = () => {
     </div>
   </main>
 </template>
+
+<style scoped>
+/* Amenity tiles: staggered pop-in */
+.amenity-tile {
+  animation: amenity-enter 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes amenity-enter {
+  from { opacity: 0; transform: translateY(14px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+</style>

@@ -66,7 +66,7 @@ import { RouterLink } from "vue-router";
       <!-- Bottom Line -->
       <div class="border-t border-white/10 pt-8 flex flex-col items-center">
         <p class="text-[#8c9aab] text-sm text-center font-inter tracking-wide">
-          © 2024 ROFFER Real Estate Investment Studio. All Rights Reserved.
+          © 2026 ROFFER Real Estate Investment Studio. All Rights Reserved.
         </p>
       </div>
 

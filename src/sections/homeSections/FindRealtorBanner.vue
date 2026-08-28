@@ -5,6 +5,13 @@ const router = useRouter();
 
 <template>
   <section class="bg-black py-20 px-4 relative overflow-hidden">
+    <!-- Banner image background -->
+    <img
+      src="/images/ChannelPage/partner-hero.webp"
+      alt=""
+      class="absolute inset-0 w-full h-full object-cover pointer-events-none"
+    />
+
     <!-- Subtle background accent -->
     <div class="absolute inset-0 pointer-events-none">
       <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-[#EB3131]/10 rounded-full blur-[100px]"></div>

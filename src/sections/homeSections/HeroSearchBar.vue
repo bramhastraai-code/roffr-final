@@ -15,24 +15,13 @@ onMounted(() => {
 });
 onBeforeUnmount(() => document.removeEventListener("click", closeAll));
 
-// ── Tabs (each maps to real /search params) ──────────────────────
+// ── Tabs — only ones that map to real, working /search filters ───
 const TABS = [
-  { key: "buy",        label: "Buy" },
-  { key: "rent",       label: "Rent" },
-  { key: "new",        label: "New Projects" },
-  { key: "pg",         label: "PG" },
-  { key: "plot",       label: "Plot" },
-  { key: "commercial", label: "Commercial" },
+  { key: "buy",  label: "Buy" },
+  { key: "rent", label: "Rent" },
+  { key: "new",  label: "New Projects" },
 ];
 const activeTab = ref("buy");
-
-const setTab = (key) => {
-  activeTab.value = key;
-  // Plot / Commercial fix the unit type; clear a conflicting manual pick
-  if (key === "plot") selectedUnitType.value = "Plot";
-  else if (key === "commercial") selectedUnitType.value = "Commercial";
-  else if (["Plot", "Commercial"].includes(selectedUnitType.value)) selectedUnitType.value = "";
-};
 
 // ── City + free text ─────────────────────────────────────────────
 const selectedCity = ref("");
@@ -54,20 +43,13 @@ const pickCity = (c) => {
   cityListOpen.value = false;
 };
 
-// ── Property type + BHK dropdown ─────────────────────────────────
-// Values match SearchView's ALLOWED_UNIT_TYPES / ALLOWED_BHK
-const UNIT_TYPES = ["Apartment", "Villa", "Studio", "Plot", "Commercial"];
+// ── BHK dropdown (values match SearchView's ALLOWED_BHK) ─────────
 const BHK_OPTIONS = ["1BHK", "2BHK", "3BHK", "4BHK", "5BHK"];
-const selectedUnitType = ref("");
 const selectedBhk = ref("");
-const typeOpen = ref(false);
-
-const typeLabel = computed(() => {
-  if (!selectedUnitType.value && !selectedBhk.value) return "Property Type";
-  const base = selectedUnitType.value || selectedBhk.value;
-  const extra = selectedUnitType.value && selectedBhk.value ? " +1" : "";
-  return `${base}${extra}`;
-});
+const bhkOpen = ref(false);
+const bhkLabel = computed(() =>
+  selectedBhk.value ? selectedBhk.value.replace("BHK", " BHK") : "BHK",
+);
 
 // ── Budget dropdown (keys match SearchView PRICE_RANGES) ─────────
 const PRICE_RANGES = [
@@ -87,34 +69,30 @@ const budgetLabel = computed(() => {
 
 const closeAll = () => {
   cityListOpen.value = false;
-  typeOpen.value = false;
+  bhkOpen.value = false;
   budgetOpen.value = false;
 };
 const toggle = (which, e) => {
   e.stopPropagation();
-  const open = { city: cityListOpen, type: typeOpen, budget: budgetOpen };
+  const open = { city: cityListOpen, bhk: bhkOpen, budget: budgetOpen };
   const cur = open[which].value;
   closeAll();
   open[which].value = !cur;
 };
 
-// ── Search → deep link into /search (SearchView reads all of these) ──
+// ── Search → deep link into /search ──────────────────────────────
 const runSearch = () => {
   const q = {};
-  let term = freeText.value.trim();
+  const term = freeText.value.trim();
 
   if (activeTab.value === "rent") q.type = "property";
   else if (activeTab.value === "new") {
     q.type = "project";
     q.projectStatus = "New Launch";
-  } else if (activeTab.value === "pg") {
-    q.type = "property";
-    term = term ? `${term} PG` : "PG";
   }
 
   if (term) q.q = term;
   if (selectedCity.value) q.city = selectedCity.value;
-  if (selectedUnitType.value) q.unitType = selectedUnitType.value;
   if (selectedBhk.value) q.bhk = selectedBhk.value;
   if (selectedPriceKey.value !== "any") q.priceKey = selectedPriceKey.value;
 
@@ -135,27 +113,23 @@ const runSearch = () => {
       <button
         v-for="t in TABS"
         :key="t.key"
-        @click="setTab(t.key)"
-        class="relative px-3 py-2 text-sm md:text-[15px] font-semibold transition-colors"
-        :class="activeTab === t.key ? 'text-[#EB3131]' : 'text-gray-800 hover:text-[#EB3131]'"
+        @click="activeTab = t.key"
+        class="hsb-tab relative px-3 py-2 text-sm md:text-[15px] font-semibold transition-colors duration-200"
+        :class="activeTab === t.key ? 'text-[#EB3131] hsb-tab--active' : 'text-gray-800 hover:text-[#EB3131]'"
       >
         {{ t.label }}
-        <span
-          v-if="activeTab === t.key"
-          class="absolute left-3 right-3 -bottom-0.5 h-[3px] rounded-full bg-[#EB3131]"
-        ></span>
       </button>
 
       <router-link
         to="/dashboard"
-        class="px-3 py-2 text-sm md:text-[15px] font-semibold text-gray-800 hover:text-[#EB3131] transition-colors"
+        class="hsb-tab relative px-3 py-2 text-sm md:text-[15px] font-semibold text-gray-800 hover:text-[#EB3131] transition-colors duration-200"
       >
         Post Free Property Ad
       </router-link>
     </div>
 
     <!-- Search bar -->
-    <div class="mt-6 bg-white border border-gray-200 rounded-3xl md:rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.08)] p-2 flex flex-col md:flex-row md:items-center gap-2 md:gap-0">
+    <div class="hsb-bar mt-6 bg-white border border-gray-200 rounded-3xl md:rounded-full shadow-[0_8px_30px_rgba(0,0,0,0.08)] p-2 flex flex-col md:flex-row md:items-center gap-2 md:gap-0">
 
       <!-- Location + free text -->
       <div class="relative flex items-center gap-2 flex-1 min-w-0 px-3 py-2">
@@ -164,10 +138,10 @@ const runSearch = () => {
         <!-- Selected city chip -->
         <span
           v-if="selectedCity"
-          class="flex items-center gap-1.5 bg-red-50 text-[#EB3131] text-sm font-semibold px-3 py-1.5 rounded-full shrink-0"
+          class="flex items-center gap-1.5 bg-red-50 text-[#EB3131] text-sm font-semibold px-3 py-1.5 rounded-full shrink-0 capitalize"
         >
           {{ selectedCity }}
-          <button @click.stop="selectedCity = ''" class="hover:opacity-70">
+          <button @click.stop="selectedCity = ''" class="hover:opacity-70 hover:rotate-90 transition-transform duration-200">
             <i class="pi pi-times text-[10px]"></i>
           </button>
         </span>
@@ -192,7 +166,7 @@ const runSearch = () => {
             v-for="c in citySuggestions"
             :key="c"
             @click="pickCity(c)"
-            class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2.5 transition-colors capitalize"
+            class="hsb-item w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-[#EB3131] flex items-center gap-2.5 transition-all duration-150 capitalize"
           >
             <i class="pi pi-map-marker text-gray-300 text-xs"></i>
             {{ c }}
@@ -202,53 +176,35 @@ const runSearch = () => {
 
       <div class="hidden md:block h-9 w-px bg-gray-200 shrink-0"></div>
 
-      <!-- Property type + BHK -->
+      <!-- BHK -->
       <div class="relative shrink-0">
         <button
-          @click="toggle('type', $event)"
-          class="w-full md:w-auto flex items-center justify-between md:justify-start gap-2 px-4 py-2.5 text-sm font-medium transition-colors rounded-full"
-          :class="selectedUnitType || selectedBhk ? 'text-[#EB3131]' : 'text-gray-700 hover:text-gray-900'"
+          @click="toggle('bhk', $event)"
+          class="hsb-pill w-full md:w-auto flex items-center justify-between md:justify-start gap-2 px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200"
+          :class="selectedBhk ? 'text-[#EB3131]' : 'text-gray-700 hover:text-gray-900'"
         >
           <span class="flex items-center gap-2">
             <i class="pi pi-home text-[#EB3131] text-sm"></i>
-            {{ typeLabel }}
+            {{ bhkLabel }}
           </span>
-          <i class="pi pi-angle-down text-xs opacity-60"></i>
+          <i class="pi pi-angle-down text-xs opacity-60 transition-transform duration-200" :class="bhkOpen ? 'rotate-180' : ''"></i>
         </button>
 
         <div
-          v-if="typeOpen"
+          v-if="bhkOpen"
           @click.stop
-          class="absolute top-full left-0 md:left-auto md:right-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 p-4"
+          class="absolute top-full left-0 md:left-auto md:right-0 mt-2 min-w-[160px] bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 py-1.5 overflow-hidden"
         >
-          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">Property type</p>
-          <div class="flex flex-wrap gap-1.5 mb-4">
-            <button
-              v-for="u in UNIT_TYPES"
-              :key="u"
-              @click="selectedUnitType = selectedUnitType === u ? '' : u"
-              class="px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors"
-              :class="selectedUnitType === u
-                ? 'bg-[#EB3131] text-white border-[#EB3131]'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'"
-            >
-              {{ u }}
-            </button>
-          </div>
-          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">BHK</p>
-          <div class="flex flex-wrap gap-1.5">
-            <button
-              v-for="b in BHK_OPTIONS"
-              :key="b"
-              @click="selectedBhk = selectedBhk === b ? '' : b"
-              class="px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors"
-              :class="selectedBhk === b
-                ? 'bg-[#EB3131] text-white border-[#EB3131]'
-                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'"
-            >
-              {{ b.replace("BHK", " BHK") }}
-            </button>
-          </div>
+          <button
+            v-for="b in BHK_OPTIONS"
+            :key="b"
+            @click="selectedBhk = selectedBhk === b ? '' : b; bhkOpen = false"
+            class="hsb-item w-full text-left px-4 py-2.5 text-sm flex items-center justify-between gap-3 transition-all duration-150"
+            :class="selectedBhk === b ? 'text-[#EB3131] font-semibold bg-red-50' : 'text-gray-700 hover:bg-red-50 hover:text-[#EB3131]'"
+          >
+            {{ b.replace("BHK", " BHK") }}
+            <i v-if="selectedBhk === b" class="pi pi-check text-[10px]"></i>
+          </button>
         </div>
       </div>
 
@@ -258,14 +214,14 @@ const runSearch = () => {
       <div class="relative shrink-0">
         <button
           @click="toggle('budget', $event)"
-          class="w-full md:w-auto flex items-center justify-between md:justify-start gap-2 px-4 py-2.5 text-sm font-medium transition-colors rounded-full"
+          class="hsb-pill w-full md:w-auto flex items-center justify-between md:justify-start gap-2 px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200"
           :class="selectedPriceKey !== 'any' ? 'text-[#EB3131]' : 'text-gray-700 hover:text-gray-900'"
         >
           <span class="flex items-center gap-2">
             <i class="pi pi-indian-rupee text-[#EB3131] text-sm"></i>
             {{ budgetLabel }}
           </span>
-          <i class="pi pi-angle-down text-xs opacity-60"></i>
+          <i class="pi pi-angle-down text-xs opacity-60 transition-transform duration-200" :class="budgetOpen ? 'rotate-180' : ''"></i>
         </button>
 
         <div
@@ -277,8 +233,8 @@ const runSearch = () => {
             v-for="r in PRICE_RANGES"
             :key="r.key"
             @click="selectedPriceKey = r.key; budgetOpen = false"
-            class="w-full text-left px-4 py-2.5 text-sm flex items-center justify-between gap-3 transition-colors"
-            :class="selectedPriceKey === r.key ? 'text-[#EB3131] font-semibold bg-red-50' : 'text-gray-700 hover:bg-gray-50'"
+            class="hsb-item w-full text-left px-4 py-2.5 text-sm flex items-center justify-between gap-3 transition-all duration-150"
+            :class="selectedPriceKey === r.key ? 'text-[#EB3131] font-semibold bg-red-50' : 'text-gray-700 hover:bg-red-50 hover:text-[#EB3131]'"
           >
             {{ r.label }}
             <i v-if="selectedPriceKey === r.key" class="pi pi-check text-[10px]"></i>
@@ -289,7 +245,7 @@ const runSearch = () => {
       <!-- Search button -->
       <button
         @click="runSearch"
-        class="shrink-0 flex items-center justify-center gap-2 bg-[#EB3131] hover:bg-[#c72828] text-white text-[15px] font-bold px-8 py-3 rounded-full transition-colors duration-200 active:scale-[0.98] shadow-md shadow-red-200 md:ml-1"
+        class="hsb-search shrink-0 flex items-center justify-center gap-2 bg-[#EB3131] text-white text-[15px] font-bold px-8 py-3 rounded-full transition-all duration-200 active:scale-[0.97] shadow-md shadow-red-200 md:ml-1"
       >
         <i class="pi pi-search text-sm"></i>
         Search
@@ -297,3 +253,65 @@ const runSearch = () => {
     </div>
   </section>
 </template>
+
+<style scoped>
+/* Tab underline: grows in from the center on hover, stays for active */
+.hsb-tab::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 2px;
+  height: 3px;
+  border-radius: 9999px;
+  background: #eb3131;
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.hsb-tab:hover::after,
+.hsb-tab--active::after {
+  transform: scaleX(1);
+}
+
+/* Bar lifts when hovered or focused */
+.hsb-bar {
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+.hsb-bar:hover,
+.hsb-bar:focus-within {
+  box-shadow: 0 14px 40px rgba(235, 49, 49, 0.14);
+  transform: translateY(-2px);
+}
+
+/* Filter pills tint on hover */
+.hsb-pill:hover {
+  background: #fef2f2;
+}
+.hsb-pill:hover .pi-home,
+.hsb-pill:hover .pi-indian-rupee {
+  transform: scale(1.15);
+}
+.hsb-pill .pi-home,
+.hsb-pill .pi-indian-rupee {
+  transition: transform 0.2s ease;
+}
+
+/* Dropdown items nudge right on hover */
+.hsb-item:hover {
+  padding-left: 20px;
+}
+
+/* Search button glow + lift */
+.hsb-search:hover {
+  background: #c72828;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 26px rgba(235, 49, 49, 0.4);
+}
+.hsb-search:hover .pi-search {
+  transform: rotate(90deg);
+}
+.hsb-search .pi-search {
+  transition: transform 0.3s ease;
+}
+</style>
