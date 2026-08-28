@@ -25,7 +25,7 @@ const slidePrev = () => swiperInstance.value?.slidePrev();
 const slideNext = () => swiperInstance.value?.slideNext();
 
 const projectStore = useProjectStore();
-const { projectPropertyListData } = storeToRefs(projectStore);
+const { featuredProjects } = storeToRefs(projectStore);
 
 // When the swiper reaches its last slide, pull the next page of projects
 // so the carousel keeps going through the full catalog
@@ -39,10 +39,13 @@ const maybeLoadMore = async (swiper) => {
 };
 
 onMounted(async () => {
-  await projectStore.getProjectList();
+  // Pull the super-admin curated featured list. Previously this section
+  // re-used the full project list, so every active project showed up
+  // under "Featured" — the curation flag now drives the real feed.
+  await projectStore.getFeaturedProjects();
 });
 
-const projects = computed(() => projectPropertyListData.value || []);
+const projects = computed(() => featuredProjects.value || []);
 </script>
 
 <template>

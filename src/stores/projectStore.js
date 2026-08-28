@@ -283,6 +283,51 @@ export const useProjectStore = defineStore("project", () => {
   // NOTE: no fetches on store instantiation — they used to fire on every
   // page (~120KB wasted). The consuming sections lazy-load on mount instead.
 
+  // Super-admin curated feeds — populated only when the corresponding
+  // section mounts so the home page doesn't fire 3+ extra requests on
+  // every load.
+  const featuredProjects = ref([]);
+  const trendingProjects = ref([]);
+
+  /**
+   * Pull projects super-admin marked `isFeaturedOnMarketplace: true`.
+   * Returns the list and stashes it on `featuredProjects` so the section
+   * can read it reactively.
+   */
+  const getFeaturedProjects = async (limit = 12) => {
+    try {
+      const response = await makeRequest(
+        "GET",
+        endpoints.marketplaceFeatured("projects"),
+        { params: { limit } }
+      );
+      const items = response?.data?.data || response?.data || [];
+      featuredProjects.value = Array.isArray(items) ? items : [];
+      return featuredProjects.value;
+    } catch (error) {
+      console.error("Error fetching featured projects", error);
+      featuredProjects.value = [];
+      return [];
+    }
+  };
+
+  const getTrendingProjects = async (limit = 12) => {
+    try {
+      const response = await makeRequest(
+        "GET",
+        endpoints.marketplaceTrending("projects"),
+        { params: { limit } }
+      );
+      const items = response?.data?.data || response?.data || [];
+      trendingProjects.value = Array.isArray(items) ? items : [];
+      return trendingProjects.value;
+    } catch (error) {
+      console.error("Error fetching trending projects", error);
+      trendingProjects.value = [];
+      return [];
+    }
+  };
+
   return {
     projectAffordablityData,
     getProjectAffordiablityData,
@@ -304,6 +349,10 @@ export const useProjectStore = defineStore("project", () => {
     getWishlist,
     addToWishlist,
     isModalOpen,
+    featuredProjects,
+    trendingProjects,
+    getFeaturedProjects,
+    getTrendingProjects,
     totalpages,
     totalProjects,
     pageNumber,
