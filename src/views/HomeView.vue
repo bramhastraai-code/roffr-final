@@ -1,9 +1,11 @@
 <script setup>
 import FadeIn from '@/components/FadeIn.vue';
 import GroupBuyHero from '@/sections/homeSections/GroupBuyHero.vue';
+import HeroSearchBar from '@/sections/homeSections/HeroSearchBar.vue';
 import DealOfTheDay from '@/sections/homeSections/DealOfTheDay.vue';
 import GroupBuyDealsSection from '@/sections/homeSections/GroupBuyDealsSection.vue';
 import FeaturedProjectsSection from '@/sections/homeSections/FeaturedProjectsSection.vue';
+import CitiesSection from '@/sections/homeSections/CitiesSection.vue';
 import HowItWorks from '@/sections/homeSections/HowItWorks.vue';
 import AboutSection from '@/sections/homeSections/AboutSection.vue';
 import ExploreByVideo from '@/sections/homeSections/ExploreByVideo.vue';
@@ -16,6 +18,13 @@ import FaqSection from '@/sections/homeSections/FaqSection.vue';
   <main>
     <FadeIn :duration="0.8">
       <GroupBuyHero />
+    </FadeIn>
+
+    <!-- z-20: FadeIn's leftover transform makes each section a stacking
+         context, so the search dropdowns need this wrapper raised above
+         the sections that follow — but below the fixed navbar (z-30) -->
+    <FadeIn :duration="0.8" :delay="0.05" class="relative z-20">
+      <HeroSearchBar />
     </FadeIn>
 
     <FadeIn :duration="0.8" :delay="0.05">
@@ -32,6 +41,10 @@ import FaqSection from '@/sections/homeSections/FaqSection.vue';
 
     <FadeIn :duration="0.8">
       <FeaturedProjectsSection />
+    </FadeIn>
+
+    <FadeIn :duration="0.8">
+      <CitiesSection />
     </FadeIn>
 
     <FadeIn :duration="0.8">

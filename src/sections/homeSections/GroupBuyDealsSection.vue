@@ -2,9 +2,12 @@
 import { ref, computed, onMounted } from "vue";
 import { useGroupBuyStore } from "@/stores/groupBuyStore";
 import { storeToRefs } from "pinia";
+import { makeRequest } from "@/request/request";
+import endpoints from "@/request/endpoints";
 import { Swiper, SwiperSlide } from "swiper/vue";
 import "swiper/css";
 import ProjectCard from "@/components/ProjectCard.vue";
+import ProjectFilterBar from "@/components/ProjectFilterBar.vue";
 
 const swiperInstance = ref(null);
 const isBeginning = ref(true);
@@ -25,14 +28,44 @@ const slideNext = () => swiperInstance.value?.slideNext();
 const groupBuyStore = useGroupBuyStore();
 const { activeCampaigns, loading } = storeToRefs(groupBuyStore);
 
+// The campaign's populated projectId only carries a few fields (name, city,
+// prices, pictures) — no builderName/venue/status. Enrich each deal with its
+// full project doc so cards show builder, real location, configs, etc.
+const projectDetails = ref(new Map());
+
 onMounted(async () => {
   await groupBuyStore.fetchActiveCampaigns();
+  const ids = [
+    ...new Set(
+      activeCampaigns.value.map((c) => c.projectId?._id).filter(Boolean),
+    ),
+  ].filter((id) => !projectDetails.value.has(id));
+  if (!ids.length) return;
+  await Promise.all(
+    ids.map(async (id) => {
+      try {
+        const res = await makeRequest(
+          endpoints.getProjectById, "GET", {}, {}, {}, 0, id,
+        );
+        projectDetails.value.set(id, res?.data || null);
+      } catch {
+        projectDetails.value.set(id, null);
+      }
+    }),
+  );
+  // Map mutations aren't reactive — reassign to refresh the cards
+  projectDetails.value = new Map(projectDetails.value);
 });
 
-// API returns projectId as a populated object. Pass it to ProjectCard so
-// ProjectCard can find the campaign in the store cache without extra calls.
+// Pass the (enriched) project to ProjectCard so it can find the campaign in
+// the store cache without extra calls.
 const deals = computed(() =>
-  activeCampaigns.value.filter(c => c.projectId?._id).map(c => c.projectId)
+  activeCampaigns.value
+    .filter((c) => c.projectId?._id)
+    .map((c) => ({
+      ...c.projectId,
+      ...(projectDetails.value.get(c.projectId._id) || {}),
+    }))
 );
 </script>
 
@@ -99,28 +132,44 @@ const deals = computed(() =>
       <p class="text-sm font-medium">No active group buying deals right now — check back soon</p>
     </div>
 
-    <!-- Swiper -->
-    <div v-else class="mt-8">
-      <Swiper
-        :space-between="20"
-        :breakpoints="{
-          320:  { slidesPerView: 1 },
-          640:  { slidesPerView: 2 },
-          1024: { slidesPerView: 3 },
-        }"
-        class="!pb-2"
-        @swiper="onSwiper"
-        @slideChange="onSlideChange"
-      >
-        <SwiperSlide
-          v-for="project in deals"
-          :key="project._id"
-          class="!h-auto"
-        >
-          <ProjectCard :project="project" :show-group-buy="true" />
-        </SwiperSlide>
-      </Swiper>
-    </div>
+    <!-- Filters + results -->
+    <ProjectFilterBar v-else :projects="deals">
+      <template #default="{ filtered, clearAll }">
+
+        <!-- No filter matches -->
+        <div v-if="!filtered.length" class="text-center py-20 text-gray-400">
+          <i class="pi pi-filter-slash text-4xl mb-4 block opacity-30"></i>
+          <p class="text-sm font-medium">No deals match the selected filters</p>
+          <button
+            @click="clearAll"
+            class="mt-3 text-[#EB3131] text-sm font-semibold hover:underline"
+          >Clear all filters</button>
+        </div>
+
+        <!-- Swiper -->
+        <div v-else class="mt-8">
+          <Swiper
+            :space-between="20"
+            :breakpoints="{
+              320:  { slidesPerView: 1 },
+              640:  { slidesPerView: 2 },
+              1024: { slidesPerView: 3 },
+            }"
+            class="!pb-2"
+            @swiper="onSwiper"
+            @slideChange="onSlideChange"
+          >
+            <SwiperSlide
+              v-for="project in filtered"
+              :key="project._id"
+              class="!h-auto"
+            >
+              <ProjectCard :project="project" :show-group-buy="true" />
+            </SwiperSlide>
+          </Swiper>
+        </div>
+      </template>
+    </ProjectFilterBar>
 
   </section>
 </template>

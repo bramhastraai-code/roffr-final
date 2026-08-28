@@ -4,6 +4,8 @@ import { useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useBrokerStore } from "@/stores/brokerStore";
 import { debounce } from "@/utils/debounce";
+import { ratingOf, starIcon, brokerTypeOf, initialsOf as initials, hashOf } from "@/utils/brokerDisplay";
+import PinMap from "@/components/PinMap.vue";
 
 const router = useRouter();
 const brokerStore = useBrokerStore();
@@ -33,26 +35,70 @@ const goToDetails = (id) => {
   router.push(`/channel-partners/${id}`);
 };
 
-const initials = (name) =>
-  (name || "?")
-    .split(" ")
-    .map((p) => p[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-
-const redactName = (name) => {
-  if (!name) return "Unnamed broker";
-  return name
-    .split(" ")
-    .map((word, i) =>
-      i === 0
-        ? word.slice(0, 3) + "*".repeat(Math.max(0, word.length - 3))
-        : word[0] + "*".repeat(Math.max(0, word.length - 1))
-    )
-    .join(" ");
+// ── Load more (append pages — map pins accumulate with the list) ──
+const { brokerListPage } = storeToRefs(brokerStore);
+const loadingMore = ref(false);
+const loadMore = async () => {
+  loadingMore.value = true;
+  await brokerStore.getBrokerList({
+    search: searchTerm.value,
+    page: brokerListPage.value + 1,
+    append: true,
+  });
+  loadingMore.value = false;
 };
+
+// ── Map ──────────────────────────────────────────────────────────
+const mobileView = ref("list"); // 'list' | 'map' (mobile toggle)
+
+// The users API has no location fields, so pins use a stable id-derived
+// position near a metro anchor — see docs/PLACEHOLDER_DATA.md. Real
+// broker.latitude/longitude wins automatically if the backend adds it.
+const CITY_ANCHORS = [
+  { name: "Mumbai", lat: 19.076, lng: 72.8777 },
+  { name: "Thane", lat: 19.2183, lng: 72.9781 },
+  { name: "Navi Mumbai", lat: 19.033, lng: 73.0297 },
+  { name: "Pune", lat: 18.5204, lng: 73.8567 },
+  { name: "Raipur", lat: 21.2514, lng: 81.6296 },
+];
+
+const positionOf = (broker) => {
+  const lat = Number(broker?.latitude);
+  const lng = Number(broker?.longitude);
+  if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng, area: "" };
+  const h = hashOf(broker?._id);
+  const anchor = CITY_ANCHORS[h % CITY_ANCHORS.length];
+  return {
+    lat: anchor.lat + (((h >> 3) % 600) - 300) / 10000,
+    lng: anchor.lng + (((h >> 9) % 600) - 300) / 10000,
+    area: anchor.name,
+  };
+};
+
+const brokerPins = computed(() =>
+  partners.value.map((b) => {
+    const pos = positionOf(b);
+    return {
+      id: b._id,
+      lat: pos.lat,
+      lng: pos.lng,
+      title: b.name || "Broker",
+      subtitle: [b.firmName || "Independent", pos.area].filter(Boolean).join(" · "),
+      initials: initials(b.name),
+      chips: [
+        `★ ${ratingOf(b).toFixed(1)}`,
+        brokerTypeOf(b).startsWith("Primary") ? "Primary Market" : "Secondary Market",
+      ],
+    };
+  }),
+);
+
+const mapNote = computed(() =>
+  partners.value.length
+    ? `Approx. locations · ${partners.value.length} of ${brokerListTotal.value} loaded`
+    : "",
+);
+
 </script>
 
 <template>
@@ -89,18 +135,26 @@ const redactName = (name) => {
       <span v-if="searchTerm">matching "{{ searchTerm }}"</span>
     </p>
 
-    <div
-      v-if="!partners.length"
-      class="text-center py-16 text-gray-500 bg-white rounded-2xl border"
-    >
-      <i class="pi pi-users text-5xl text-gray-300 mb-4 block"></i>
-      <p>No channel partners found.</p>
-    </div>
+    <!-- Split: list + map -->
+    <div class="lg:flex lg:gap-5 lg:items-start">
 
-    <div
-      v-else
-      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
-    >
+      <!-- Left: list -->
+      <div
+        class="lg:w-[55%]"
+        :class="mobileView === 'map' ? 'hidden lg:block' : ''"
+      >
+        <div
+          v-if="!partners.length"
+          class="text-center py-16 text-gray-500 bg-white rounded-2xl border"
+        >
+          <i class="pi pi-users text-5xl text-gray-300 mb-4 block"></i>
+          <p>No channel partners found.</p>
+        </div>
+
+        <div
+          v-else
+          class="grid grid-cols-1 sm:grid-cols-2 gap-4"
+        >
       <div
         v-for="broker in partners"
         :key="broker._id"
@@ -124,20 +178,38 @@ const redactName = (name) => {
 
         <div class="p-4 text-sm text-gray-700">
           <h2 class="font-semibold text-base text-gray-900 line-clamp-1">
-            {{ redactName(broker?.name) }}
+            {{ broker?.name || "Unnamed broker" }}
           </h2>
-          <p class="text-xs text-gray-500 mb-3 line-clamp-1">
+          <p class="text-xs text-gray-500 line-clamp-1">
             {{ broker?.firmName || "Independent" }}
           </p>
 
+          <!-- Rating -->
+          <div class="flex items-center gap-1.5 mt-2">
+            <div class="flex items-center gap-0.5">
+              <i
+                v-for="i in 5"
+                :key="i"
+                :class="starIcon(ratingOf(broker), i)"
+                class="text-[13px]"
+                :style="{ color: ratingOf(broker) >= i - 0.5 ? '#f59e0b' : '#d1d5db' }"
+              ></i>
+            </div>
+            <span class="text-xs font-semibold text-gray-700">{{ ratingOf(broker).toFixed(1) }}</span>
+          </div>
+
+          <!-- Broker type -->
+          <span
+            class="inline-block mt-2 text-[11px] font-semibold px-2.5 py-1 rounded-full border"
+            :class="brokerTypeOf(broker).startsWith('Primary')
+              ? 'bg-blue-50 text-blue-700 border-blue-100'
+              : 'bg-purple-50 text-purple-700 border-purple-100'"
+          >
+            {{ brokerTypeOf(broker) }}
+          </span>
+
           <div class="border-t my-2"></div>
 
-          <div class="flex justify-between py-1 text-xs">
-            <span class="text-gray-500">RERA ID</span>
-            <span class="text-gray-800 line-clamp-1 ml-2">
-              {{ broker?.reraNumber || "—" }}
-            </span>
-          </div>
           <div class="flex justify-between py-1 text-xs">
             <span class="text-gray-500">Phone</span>
             <span class="text-gray-800">**********</span>
@@ -154,6 +226,52 @@ const redactName = (name) => {
             View profile
           </button>
         </div>
+      </div>
+        </div>
+
+        <!-- Load more -->
+        <div v-if="partners.length && partners.length < brokerListTotal" class="text-center mt-8">
+          <button
+            @click="loadMore"
+            :disabled="loadingMore"
+            class="px-8 py-3 rounded-full border border-gray-300 text-sm font-semibold text-gray-700 hover:border-[#EB3131] hover:text-[#EB3131] transition-colors duration-200 disabled:opacity-50"
+          >
+            <span v-if="loadingMore"><i class="pi pi-spinner pi-spin text-xs mr-1.5"></i>Loading…</span>
+            <span v-else>Load more ({{ partners.length }} of {{ brokerListTotal }})</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Right: map (sticky on desktop, toggled on mobile) -->
+      <div
+        class="lg:w-[45%] lg:sticky lg:top-24 h-[68vh] lg:h-[calc(100vh-130px)] mt-2 lg:mt-0"
+        :class="mobileView === 'map' ? 'block' : 'hidden lg:block'"
+      >
+        <PinMap
+          :pins="brokerPins"
+          :note="mapNote"
+          @pin-click="(pin) => goToDetails(pin.id)"
+        />
+      </div>
+    </div>
+
+    <!-- Mobile list/map toggle -->
+    <div class="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
+      <div class="flex items-center bg-gray-900 rounded-full shadow-2xl p-1">
+        <button
+          @click="mobileView = 'list'"
+          class="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-colors"
+          :class="mobileView === 'list' ? 'bg-white text-gray-900' : 'text-white/80'"
+        >
+          <i class="pi pi-list text-xs"></i> List
+        </button>
+        <button
+          @click="mobileView = 'map'"
+          class="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-colors"
+          :class="mobileView === 'map' ? 'bg-white text-gray-900' : 'text-white/80'"
+        >
+          <i class="pi pi-map text-xs"></i> Map
+        </button>
       </div>
     </div>
   </section>

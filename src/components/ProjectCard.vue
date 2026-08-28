@@ -2,6 +2,7 @@
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { fmtINRShort, WHATSAPP } from '@/data/properties.js'
+import { bhkConfigsOf } from '@/utils/bhkDisplay'
 import { useGroupBuyStore } from '@/stores/groupBuyStore'
 import { useAuthStore } from '@/stores/authStore'
 import GroupBuyJoinModal from '@/components/GroupBuyJoinModal.vue'
@@ -26,6 +27,29 @@ const cover = computed(() => {
   return (pics && pics[0]) || (props.project.marketingCollaterals?.[0]?.link) || null
 })
 
+// Last locality + city from the full address, e.g. "Bhandup West, Mumbai"
+const shortLocation = computed(() => {
+  const full = props.project.venue || props.project.address || ''
+  if (full) {
+    const parts = String(full)
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s && !/^india$/i.test(s) && !/\d{5,}/.test(s))
+    if (parts.length) return parts.slice(-2).join(', ')
+  }
+  const fallback = [props.project.region, props.project.city].filter(Boolean).join(', ')
+  return fallback || props.project.builderName || 'Location not specified'
+})
+
+const propertyConfigs = computed(() => bhkConfigsOf(props.project))
+
+const builderName = computed(
+  () => props.project.builderName || props.project.companyId?.companyName || '',
+)
+const builderLogo = computed(
+  () => props.project.builderLogo || props.project.companyId?.logo || '',
+)
+
 // ── Real campaign data ────────────────────────────────────────────
 const campaign = ref(null)
 const joinModalOpen = ref(false)
@@ -43,7 +67,12 @@ const gb = computed(() => {
   if (!c) return null
   const joined = Number(c.acceptedMembersCount || 0)
   const slots = Number(c.memberLimit || 5)
-  const discountPct = Number(c.currentDiscountPercent || 0)
+  // "Save up to" = the best unlockable tier, not just the current tier
+  const tierMax = Math.max(
+    0,
+    ...(c.discountTiers || []).map((t) => Number(t.discountPercent) || 0),
+  )
+  const discountPct = Math.max(Number(c.currentDiscountPercent || 0), tierMax)
   const slotsLeft = Math.max(0, slots - joined)
   const pct = Math.round((joined / slots) * 100)
   const base = Math.max(props.project?.minPrice || 5000000, 2000000)
@@ -56,6 +85,23 @@ const gb = computed(() => {
   else if (pct >= 50) ribbon = `◉ ${slotsLeft} slots left`
   const canJoin = c.canJoin !== false && (c.status || 'ACTIVE') === 'ACTIVE'
   return { slots, joined, slotsLeft, pct, discountPct, discount: `${discountPct}%`, rsSavings: fmtINRShort(savings), closing, hot, ribbon, canJoin }
+})
+
+// Offer badge: project-level offer field if the API sends one, else the
+// campaign's discount/title
+const offer = computed(() => {
+  const direct = props.project.offer || props.project.offerText
+  if (direct && typeof direct === 'string') return direct
+  const c = campaign.value
+  if (!c) return ''
+  const tierMax = Math.max(
+    0,
+    ...(c.discountTiers || []).map((t) => Number(t.discountPercent) || 0),
+  )
+  const pct = Math.max(Number(c.currentDiscountPercent) || 0, tierMax)
+  if (pct && c.title) return `${pct}% OFF · ${c.title}`
+  if (pct) return `${pct}% OFF`
+  return c.title || ''
 })
 
 const originalPriceLabel = computed(() => {
@@ -169,8 +215,14 @@ const handleJoined = async () => {
       <!-- subtle gradient at bottom -->
       <div class="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent"></div>
 
-      <!-- Great Value badge -->
-      <span class="absolute top-4 left-4 bg-green-500 text-white text-[11px] font-bold px-3 py-1.5 rounded-md tracking-wide shadow-sm">
+      <!-- Offer badge (animated) or Great Value fallback -->
+      <span
+        v-if="offer"
+        class="offer-badge absolute top-4 left-4 text-white text-[11px] font-bold px-3 py-1.5 rounded-md tracking-wide shadow-lg max-w-[75%] truncate"
+      >
+        <i class="pi pi-bolt text-[10px] mr-1"></i>{{ offer }}
+      </span>
+      <span v-else class="absolute top-4 left-4 bg-green-500 text-white text-[11px] font-bold px-3 py-1.5 rounded-md tracking-wide shadow-sm">
         Great Value
       </span>
 
@@ -203,6 +255,24 @@ const handleJoined = async () => {
           {{ gb.slotsLeft }} spots left
         </span>
       </div>
+
+      <!-- Builder chip -->
+      <div
+        v-if="builderName"
+        class="absolute bottom-3 left-4 flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full pl-1 pr-2.5 py-1 shadow-sm max-w-[65%]"
+      >
+        <img
+          v-if="builderLogo"
+          :src="builderLogo"
+          class="w-5 h-5 rounded-full object-cover shrink-0"
+          alt=""
+        />
+        <span
+          v-else
+          class="w-5 h-5 rounded-full bg-[#1a2b5f] text-white text-[9px] font-bold flex items-center justify-center shrink-0"
+        >{{ builderName.charAt(0).toUpperCase() }}</span>
+        <span class="text-[11px] font-semibold text-gray-800 truncate">{{ builderName }}</span>
+      </div>
     </div>
 
     <!-- ── Body ──────────────────────────────────────────── -->
@@ -214,7 +284,15 @@ const handleJoined = async () => {
           <h3 class="font-bold text-gray-900 text-[17px] leading-snug">{{ project.projectName }}</h3>
           <div class="flex items-center gap-1.5 mt-1.5">
             <i class="pi pi-map-marker text-gray-400 text-xs shrink-0"></i>
-            <span class="text-sm text-gray-500 truncate">{{ project.venue || project.builderName || 'Location not specified' }}</span>
+            <span class="text-sm text-gray-500 truncate">{{ shortLocation }}</span>
+          </div>
+          <!-- Property configurations -->
+          <div v-if="propertyConfigs.length" class="flex items-center gap-1.5 mt-2 flex-wrap">
+            <span
+              v-for="cfg in propertyConfigs"
+              :key="cfg"
+              class="text-[11px] font-semibold text-gray-700 bg-gray-100 border border-gray-200 rounded-md px-2 py-0.5"
+            >{{ cfg }}</span>
           </div>
         </div>
         <button
@@ -352,3 +430,36 @@ const handleJoined = async () => {
     @joined="handleJoined"
   />
 </template>
+
+<style scoped>
+/* Animated offer badge: moving gradient + shimmer sweep + soft pulse */
+.offer-badge {
+  position: absolute;
+  overflow: hidden;
+  background: linear-gradient(110deg, #eb3131, #e8820c, #dd2476, #eb3131);
+  background-size: 250% 100%;
+  animation: offer-gradient 3.5s linear infinite, offer-pulse 2s ease-in-out infinite;
+}
+.offer-badge::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  animation: offer-shimmer 2.4s ease-in-out infinite;
+}
+@keyframes offer-gradient {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 250% 50%; }
+}
+@keyframes offer-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.05); }
+}
+@keyframes offer-shimmer {
+  0%       { left: -60%; }
+  55%, 100% { left: 120%; }
+}
+</style>

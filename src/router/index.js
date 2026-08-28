@@ -201,6 +201,11 @@ const router = createRouter({
           component: PlatformsView
         },
         {
+          name: "rios",
+          path: "/rios",
+          component: () => import('@/views/RiosAiView.vue')
+        },
+        {
           name: "cities",
           path: "/cities",
           component: CitiesView

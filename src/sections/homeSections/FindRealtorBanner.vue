@@ -15,7 +15,7 @@ const router = useRouter();
         Verified Partner Network
       </p>
       <h2 class="text-white text-[32px] md:text-[48px] xl:text-[56px] font-bold leading-tight mb-5">
-        Find Your Perfect Realtor
+        Find Your Dedicated R Advisor
       </h2>
       <p class="text-white/50 text-base md:text-lg max-w-lg mx-auto mb-10 leading-relaxed">
         Connect with trusted channel partners and expert realtors who understand your property goals.

@@ -47,10 +47,16 @@ export const useBrokerStore = defineStore("broker", () => {
     }
   };
 
-  const getBrokerList = async ({ search = "", sortBy = "createdAt", sortOrder = "desc" } = {}) => {
+  const getBrokerList = async ({
+    search = "",
+    sortBy = "createdAt",
+    sortOrder = "desc",
+    page = 1,
+    append = false,
+  } = {}) => {
     try {
       const params = {
-        pageNumber: brokerListPage.value,
+        pageNumber: page,
         pageSize: brokerListPageSize.value,
         sortBy,
         sortOrder,
@@ -67,14 +73,65 @@ export const useBrokerStore = defineStore("broker", () => {
       );
 
       const payload = response?.data ?? {};
-      brokerList.value = payload?.users ?? payload?.data ?? [];
+      const fetched = payload?.users ?? payload?.data ?? [];
+      brokerList.value = append ? [...brokerList.value, ...fetched] : fetched;
+      brokerListPage.value = page;
       brokerListTotal.value =
         payload?.total ?? payload?.totalUsers ?? brokerList.value.length;
     } catch (error) {
       console.error("Error in fetching broker list", error);
-      brokerList.value = [];
-      brokerListTotal.value = 0;
+      if (!append) {
+        brokerList.value = [];
+        brokerListTotal.value = 0;
+      }
     }
+  };
+
+  // ── Assigned channel partner lookup ────────────────────────────
+  // The users API has no companyId filter (404), so we build a small
+  // companyId -> broker index once per session (up to 400 newest users)
+  // and match client-side. Verified brokers win over unverified ones.
+  let companyIndex = null;
+  let companyIndexPromise = null;
+
+  const buildCompanyIndex = () => {
+    if (companyIndexPromise) return companyIndexPromise;
+    companyIndexPromise = (async () => {
+      const map = new Map();
+      for (let page = 1; page <= 4; page++) {
+        try {
+          const res = await makeRequest(
+            endpoints.broker,
+            "GET",
+            {},
+            {},
+            { pageNumber: page, pageSize: 100, sortBy: "createdAt", sortOrder: "desc" },
+            0,
+          );
+          const users = res?.data?.users ?? [];
+          if (!users.length) break;
+          for (const u of users) {
+            const cid = u?.companyId?._id || u?.companyId;
+            if (!cid) continue;
+            const existing = map.get(cid);
+            if (!existing || (u.is_verified && !existing.is_verified)) map.set(cid, u);
+          }
+        } catch (error) {
+          console.error("Error building broker company index", error);
+          break;
+        }
+      }
+      companyIndex = map;
+      return map;
+    })();
+    return companyIndexPromise;
+  };
+
+  /** Broker assigned to a company's projects, or null when none is registered. */
+  const findBrokerForCompany = async (companyId) => {
+    if (!companyId) return null;
+    const map = companyIndex || (await buildCompanyIndex());
+    return map.get(companyId) || null;
   };
 
   const reset = () => {
@@ -87,6 +144,7 @@ export const useBrokerStore = defineStore("broker", () => {
     getBrokerData,
     getCurrentBrokerData,
     getBrokerList,
+    findBrokerForCompany,
     currentBrokerData,
     brokerData,
     brokerList,

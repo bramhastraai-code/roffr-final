@@ -31,7 +31,7 @@ const fallbackMessage = computed(() => {
 });
 
 const projectStore = useProjectStore();
-const { uniqueCitiesData } = storeToRefs(projectStore);
+const { activeCitiesData } = storeToRefs(projectStore);
 
 // UI-only refs (mirror the URL query)
 const localTerm = ref(String(route.query.q || ""));
@@ -109,6 +109,7 @@ const formatINR = (n) => `₹ ${Number(n || 0).toLocaleString("en-IN")}`;
 const goToItem = (item) => {
   if (!item?.id) return;
   if (item.kind === "project") router.push(`/project-details/${item.id}`);
+  else if (item.kind === "builder") router.push(`/builders/${item.id}`);
   else router.push(`/property-details/${item.id}`);
 };
 
@@ -234,7 +235,7 @@ watch(
 onMounted(async () => {
   page.value = parseInt(String(route.query.page || "1"), 10) || 1;
   await Promise.all([
-    projectStore.getProjectCities(),
+    projectStore.getActiveCities(),
     runFromState(),
   ]);
 });
@@ -271,7 +272,7 @@ onMounted(async () => {
             class="border border-gray-300 rounded-full px-4 py-2 text-sm text-gray-700 bg-white"
           >
             <option value="">All cities</option>
-            <option v-for="c in uniqueCitiesData" :key="c" :value="c">
+            <option v-for="c in activeCitiesData" :key="c" :value="c" class="capitalize">
               {{ c }}
             </option>
           </select>
@@ -517,11 +518,31 @@ onMounted(async () => {
               :class="
                 item.kind === 'project'
                   ? 'bg-orange-50 text-orange-600 border border-orange-200'
-                  : 'bg-blue-50 text-blue-600 border border-blue-200'
+                  : item.kind === 'builder'
+                    ? 'bg-purple-50 text-purple-600 border border-purple-200'
+                    : 'bg-blue-50 text-blue-600 border border-blue-200'
               "
             >
               {{ item.kind }}
             </span>
+
+            <!-- Builder chip -->
+            <div
+              v-if="item.doc?.builderName"
+              class="absolute bottom-3 left-3 flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full pl-1 pr-2.5 py-1 shadow-sm max-w-[70%]"
+            >
+              <img
+                v-if="item.doc?.builderLogo"
+                :src="item.doc.builderLogo"
+                class="w-5 h-5 rounded-full object-cover shrink-0"
+                alt=""
+              />
+              <span
+                v-else
+                class="w-5 h-5 rounded-full bg-[#1a2b5f] text-white text-[9px] font-bold flex items-center justify-center shrink-0"
+              >{{ item.doc.builderName.charAt(0).toUpperCase() }}</span>
+              <span class="text-[11px] font-semibold text-gray-800 truncate">{{ item.doc.builderName }}</span>
+            </div>
           </div>
 
           <div class="p-4 flex flex-col gap-1">
@@ -547,6 +568,12 @@ onMounted(async () => {
               <span v-if="item.bhk">{{ item.bhk }}</span>
               <span v-if="item.bhk && item.unitType"> · </span>
               <span v-if="item.unitType">{{ item.unitType }}</span>
+            </p>
+            <p
+              v-else-if="item.kind === 'builder' && item.doc?.aboutUs"
+              class="text-xs text-gray-600 mt-1 line-clamp-2"
+            >
+              {{ item.doc.aboutUs }}
             </p>
           </div>
         </div>

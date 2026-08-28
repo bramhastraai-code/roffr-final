@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useBrokerStore } from "@/stores/brokerStore";
+import { ratingOf, starIcon, brokerTypeOf, initialsOf as initials } from "@/utils/brokerDisplay";
 
 const route = useRoute();
 const router = useRouter();
@@ -22,27 +23,6 @@ const contactForm = ref({
 // brokerData in the store is shaped { user, totalSiteVisits } when fetched by id.
 const broker = computed(() => brokerData.value?.user ?? brokerData.value ?? {});
 const totalSiteVisits = computed(() => brokerData.value?.totalSiteVisits ?? 0);
-
-const initials = (name) =>
-  (name || "?")
-    .split(" ")
-    .map((p) => p[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-
-const redactName = (name) => {
-  if (!name) return "Broker";
-  return name
-    .split(" ")
-    .map((word, i) =>
-      i === 0
-        ? word.slice(0, 3) + "*".repeat(Math.max(0, word.length - 3))
-        : word[0] + "*".repeat(Math.max(0, word.length - 1))
-    )
-    .join(" ");
-};
 
 const loadBroker = async (id) => {
   if (!id) return;
@@ -100,11 +80,25 @@ const handleConnect = () => {
           </div>
           <div>
             <h1 class="text-2xl font-semibold text-gray-900">
-              {{ redactName(broker?.name) }}
+              {{ broker?.name || "Broker" }}
             </h1>
             <p class="text-sm text-gray-500">
               {{ broker?.firmName || "Independent" }}
             </p>
+
+            <!-- Rating -->
+            <div class="flex items-center gap-1.5 mt-1.5">
+              <div class="flex items-center gap-0.5">
+                <i
+                  v-for="i in 5"
+                  :key="i"
+                  :class="starIcon(ratingOf(broker), i)"
+                  class="text-sm"
+                  :style="{ color: ratingOf(broker) >= i - 0.5 ? '#f59e0b' : '#d1d5db' }"
+                ></i>
+              </div>
+              <span class="text-sm font-semibold text-gray-700">{{ ratingOf(broker).toFixed(1) }}</span>
+            </div>
           </div>
         </div>
 
@@ -124,10 +118,15 @@ const handleConnect = () => {
             </p>
           </div>
           <div>
-            <p class="text-gray-500 text-xs uppercase tracking-wider">RERA ID</p>
-            <p class="mt-1 text-sm text-gray-800">
-              {{ broker?.reraNumber || "—" }}
-            </p>
+            <p class="text-gray-500 text-xs uppercase tracking-wider">Broker Type</p>
+            <span
+              class="inline-block mt-1 text-[11px] font-semibold px-2.5 py-1 rounded-full border"
+              :class="brokerTypeOf(broker).startsWith('Primary')
+                ? 'bg-blue-50 text-blue-700 border-blue-100'
+                : 'bg-purple-50 text-purple-700 border-purple-100'"
+            >
+              {{ brokerTypeOf(broker) }}
+            </span>
           </div>
         </div>
 

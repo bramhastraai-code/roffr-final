@@ -5,6 +5,10 @@ import { storeToRefs } from "pinia";
 import { useSearchStore } from "@/stores/SearchStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { debounce } from "@/utils/debounce";
+import { bhkLabelOf } from "@/utils/bhkDisplay";
+
+// Real BHK when the listing has it, stable placeholder otherwise
+const bhkOf = (item) => item.bhk || bhkLabelOf(item.id);
 
 const router = useRouter();
 const route = useRoute();
@@ -416,11 +420,28 @@ onMounted(async () => {
 
             <!-- BHK pill bottom-right -->
             <span
-              v-if="item.bhk"
               class="absolute bottom-3 right-3 text-[11px] font-bold px-2.5 py-1 rounded-full bg-black/60 text-white backdrop-blur-sm"
             >
-              {{ item.bhk }}
+              {{ bhkOf(item) }}
             </span>
+
+            <!-- Builder chip (only when the listing actually has one) -->
+            <div
+              v-if="item.doc?.builderName"
+              class="absolute bottom-3 left-3 flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full pl-1 pr-2.5 py-1 shadow-sm max-w-[55%]"
+            >
+              <img
+                v-if="item.doc?.builderLogo"
+                :src="item.doc.builderLogo"
+                class="w-5 h-5 rounded-full object-cover shrink-0"
+                alt=""
+              />
+              <span
+                v-else
+                class="w-5 h-5 rounded-full bg-[#1a2b5f] text-white text-[9px] font-bold flex items-center justify-center shrink-0"
+              >{{ item.doc.builderName.charAt(0).toUpperCase() }}</span>
+              <span class="text-[11px] font-semibold text-gray-800 truncate">{{ item.doc.builderName }}</span>
+            </div>
           </div>
 
           <!-- Body -->
@@ -440,9 +461,9 @@ onMounted(async () => {
 
             <!-- Specs row -->
             <div class="flex items-center gap-4 text-xs text-gray-600 mb-3 flex-wrap">
-              <div v-if="item.bhk" class="flex items-center gap-1.5">
+              <div class="flex items-center gap-1.5">
                 <i class="pi pi-th-large text-gray-400 text-[11px]"></i>
-                <span class="font-semibold">{{ item.bhk }}</span>
+                <span class="font-semibold">{{ bhkOf(item) }}</span>
               </div>
               <div
                 v-if="item.doc?.property_details?.area?.usable_area?.value"

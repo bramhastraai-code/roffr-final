@@ -7,6 +7,8 @@ import "swiper/css";
 import { usePropertyStore } from "@/stores/propertyStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMyDashboardStore } from "@/stores/myDashboardStore";
+import VisitAssistCard from "@/components/VisitAssistCard.vue";
+import { useBrokerStore } from "@/stores/brokerStore";
 
 const route = useRoute();
 const router = useRouter();
@@ -19,11 +21,18 @@ const dashboardStore = useMyDashboardStore();
 
 // ---------- Loaders ----------
 const loading = ref(false);
+const brokerStore = useBrokerStore();
+// Channel partner assigned via the listing's company; null = generic team card
+const assignedBroker = ref(null);
+
 const loadProperty = async (id) => {
   if (!id) return;
   loading.value = true;
   try {
     await propertyStore.getPropertyById(id);
+    const doc = specificPropertyDetails.value || {};
+    const companyId = doc.companyId?._id || doc.companyId;
+    assignedBroker.value = await brokerStore.findBrokerForCompany(companyId);
   } finally {
     loading.value = false;
   }
@@ -113,6 +122,25 @@ const carpetAreaLabel = computed(() => {
   const a = property.value?.property_details?.area?.usable_area || {};
   if (!a.value && !a.unit) return "—";
   return `${a.value ?? "—"} ${a.unit ?? "sqft"}`;
+});
+
+// Prefilled question for the RIOS AI page (Ask R AI button)
+const riosQuery = computed(() => {
+  const p = property.value || {};
+  const det = p.property_details || {};
+  const loc = p.location || {};
+  const price = Number(p.listing_details?.price || 0);
+  return [
+    `Give me an overview of the property "${p.title || "this property"}"`,
+    [loc.locality, loc.city].filter(Boolean).length
+      ? `in ${[loc.locality, loc.city].filter(Boolean).join(", ")}.`
+      : ".",
+    det.bhk ? `Configuration: ${det.bhk}${det.unit_type ? ` ${det.unit_type}` : ""}.` : "",
+    price ? `Listed at ₹${price.toLocaleString("en-IN")}.` : "",
+    "Tell me the pros and cons, whether the price is fair, and what questions I should ask the owner.",
+  ]
+    .filter(Boolean)
+    .join(" ");
 });
 
 // ---------- Hero gallery ----------
@@ -435,6 +463,18 @@ const handleCompare = () => {
             </aside>
           </div>
         </div>
+      </section>
+
+      <!-- ========== LIVE TOUR / RM ASSIST / ASK R AI ========== -->
+      <section class="max-w-7xl mx-auto px-4 2xl:px-0 py-6">
+        <VisitAssistCard
+          horizontal
+          :tour-link="heroVideos[0] || ''"
+          :context-name="property?.title || 'this property'"
+          :rios-query="riosQuery"
+          :broker="assignedBroker"
+          @book-visit="openModal('visit')"
+        />
       </section>
 
       <!-- ========== TABS ========== -->

@@ -1,15 +1,11 @@
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
+import { ref, onMounted, onBeforeUnmount } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuthStore } from "@/stores/authStore";
-import { useSearchStore } from "@/stores/SearchStore";
-import { useProjectStore } from "@/stores/projectStore";
 import { storeToRefs } from "pinia";
-import { debounce } from "@/utils/debounce";
 
 const isScrolled  = ref(false);
 const isMenuOpen  = ref(false);
-const location    = ref("Select Location");
 
 const route  = useRoute();
 const router = useRouter();
@@ -17,115 +13,10 @@ const router = useRouter();
 const authStore = useAuthStore();
 const { isAuthenticated, user } = storeToRefs(authStore);
 
-const searchStore = useSearchStore();
-const { searchSuggestionData, term } = storeToRefs(searchStore);
-
-const projectStore = useProjectStore();
-const { uniqueCitiesData } = storeToRefs(projectStore);
-
-// ── Search state ─────────────────────────────────────────────────
-const searchInput       = ref("");
-const desktopSugOpen    = ref(false);
-const mobileSugOpen     = ref(false);
-const desktopSearchRef  = ref(null);
-const mobileSearchRef   = ref(null);
-
-const suggestionsList = computed(() =>
-  Array.isArray(searchSuggestionData.value)
-    ? searchSuggestionData.value
-    : searchSuggestionData.value?.data || []
-);
-
-const fetchSuggestions = debounce(async () => {
-  const t = searchInput.value.trim();
-  if (t.length < 2) {
-    desktopSugOpen.value = false;
-    mobileSugOpen.value = false;
-    return;
-  }
-  term.value = t;
-  await searchStore.getSearchSuggestion();
-  desktopSugOpen.value = true;
-  mobileSugOpen.value = true;
-}, 300);
-
-watch(searchInput, fetchSuggestions);
-
-const goToResults = () => {
-  const q = searchInput.value.trim();
-  desktopSugOpen.value = false;
-  mobileSugOpen.value = false;
+// ── RIOS AI — the navbar bar is a shortcut to the AI assistant page ──
+const goToRios = () => {
   isMenuOpen.value = false;
-  router.push({ path: "/search", query: q ? { q } : {} });
-};
-
-const onSuggestionClick = (s) => {
-  desktopSugOpen.value = false;
-  mobileSugOpen.value = false;
-  isMenuOpen.value = false;
-  if (s.type === "project" && s._id) {
-    router.push(`/project-details/${s._id}`);
-    return;
-  }
-  if (s.type === "property" && s._id) {
-    router.push(`/property-details/${s._id}`);
-    return;
-  }
-  searchInput.value = s.title || searchInput.value;
-  goToResults();
-};
-
-// ── Location picker ───────────────────────────────────────────────
-const locationOpen = ref(false);
-const locationRef  = ref(null);
-const detecting    = ref(false);
-
-const selectCity = (city) => {
-  location.value = city;
-  locationOpen.value = false;
-};
-
-const clearLocation = () => {
-  location.value = "Select Location";
-  locationOpen.value = false;
-};
-
-const detectLocation = () => {
-  if (!navigator.geolocation) return;
-  detecting.value = true;
-  navigator.geolocation.getCurrentPosition(
-    async ({ coords }) => {
-      try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?lat=${coords.latitude}&lon=${coords.longitude}&format=json`
-        );
-        const data = await res.json();
-        const city =
-          data.address?.city ||
-          data.address?.town ||
-          data.address?.county ||
-          data.address?.state_district ||
-          "";
-        if (city) location.value = city;
-      } catch { /* ignore */ }
-      detecting.value = false;
-      locationOpen.value = false;
-    },
-    () => { detecting.value = false; }
-  );
-};
-
-// ── Click-outside closes suggestions ─────────────────────────────
-const onClickOutside = (e) => {
-  if (desktopSearchRef.value && !desktopSearchRef.value.contains(e.target)) {
-    desktopSugOpen.value = false;
-  }
-  if (mobileSearchRef.value && !mobileSearchRef.value.contains(e.target)) {
-    mobileSugOpen.value = false;
-  }
-  if (locationRef.value && !locationRef.value.contains(e.target)) {
-    locationOpen.value = false;
-  }
+  router.push("/rios");
 };
 
 // ── Scroll ────────────────────────────────────────────────────────
@@ -134,12 +25,9 @@ const handleScroll = () => { isScrolled.value = window.scrollY > 10; };
 onMounted(() => {
   handleScroll();
   window.addEventListener("scroll", handleScroll, { passive: true });
-  document.addEventListener("click", onClickOutside);
-  projectStore.getProjectCities();
 });
 onBeforeUnmount(() => {
   window.removeEventListener("scroll", handleScroll);
-  document.removeEventListener("click", onClickOutside);
 });
 
 // ── Nav ───────────────────────────────────────────────────────────
@@ -267,146 +155,30 @@ const handleLogout = () => { authStore.logout(); router.push("/"); isMenuOpen.va
         />
       </router-link>
 
-      <!-- Desktop search bar + suggestions -->
-      <div ref="desktopSearchRef" class="hidden md:flex relative items-center flex-1 max-w-2xl mx-auto">
-        <div class="w-full rounded-full p-[1.5px] ai-gradient-border">
-        <div
-          class="w-full flex items-center gap-0 rounded-full overflow-visible"
-          :class="isScrolled ? 'bg-black' : 'bg-white'"
+      <!-- Desktop RIOS AI bar — clicking anywhere opens the RIOS page -->
+      <div class="hidden md:flex relative items-center flex-1 max-w-2xl mx-auto">
+        <button
+          @click="goToRios"
+          class="w-full rounded-full p-[1.5px] ai-gradient-border text-left cursor-pointer group"
         >
-          <!-- Location picker -->
-          <div ref="locationRef" class="relative shrink-0">
-            <button
-              @click.stop="locationOpen = !locationOpen"
-              class="flex items-center gap-2 px-4 py-2 transition-colors duration-200 rounded-l-full"
-              :class="isScrolled ? 'hover:bg-white/10' : 'hover:bg-gray-50'"
-            >
-              <i class="pi pi-map-marker text-[#EB3131] text-base"></i>
-              <div class="text-left min-w-0">
-                <div class="text-[10px] font-semibold uppercase tracking-wide leading-none"
-                     :class="isScrolled ? 'text-white/50' : 'text-gray-400'">Location</div>
-                <div class="text-xs font-medium truncate max-w-[130px] leading-tight mt-0.5"
-                     :class="isScrolled ? 'text-white/80' : 'text-gray-700'">{{ location }}</div>
-              </div>
-              <i class="pi text-xs transition-transform duration-200"
-                 :class="[locationOpen ? 'pi-angle-up' : 'pi-angle-down', isScrolled ? 'text-white/50' : 'text-gray-400']"></i>
-            </button>
-
-            <!-- Location dropdown -->
-            <div
-              v-if="locationOpen"
-              class="absolute top-full left-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden"
-            >
-              <!-- Detect location -->
-              <button
-                @click="detectLocation"
-                class="w-full flex items-center gap-3 px-4 py-3 hover:bg-blue-50 transition-colors border-b border-gray-100 text-left"
-              >
-                <div class="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-                  <i class="pi text-blue-500 text-xs" :class="detecting ? 'pi-spin pi-spinner' : 'pi-compass'"></i>
-                </div>
-                <span class="text-sm font-semibold text-blue-600">
-                  {{ detecting ? "Detecting…" : "Use current location" }}
-                </span>
-              </button>
-
-              <!-- Clear -->
-              <button
-                v-if="location !== 'Select Location'"
-                @click="clearLocation"
-                class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-red-50 transition-colors border-b border-gray-100 text-left"
-              >
-                <div class="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center shrink-0">
-                  <i class="pi pi-times text-[#EB3131] text-xs"></i>
-                </div>
-                <span class="text-sm font-medium text-[#EB3131]">Clear location</span>
-              </button>
-
-              <!-- City list -->
-              <div class="max-h-56 overflow-y-auto">
-                <button
-                  v-for="city in uniqueCitiesData"
-                  :key="city"
-                  @click="selectCity(city)"
-                  class="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors text-left"
-                  :class="location === city ? 'bg-red-50' : ''"
-                >
-                  <i class="pi pi-map-marker text-xs shrink-0"
-                     :class="location === city ? 'text-[#EB3131]' : 'text-gray-400'"></i>
-                  <span class="text-sm text-gray-800 font-medium">{{ city }}</span>
-                  <i v-if="location === city" class="pi pi-check text-[#EB3131] text-xs ml-auto"></i>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="h-8 w-px shrink-0" :class="isScrolled ? 'bg-white/20' : 'bg-gray-200'"></div>
-
-          <!-- Input -->
-          <div class="flex items-center gap-2 px-4 flex-1">
+          <div
+            class="w-full flex items-center gap-2 rounded-full px-4 py-1"
+            :class="isScrolled ? 'bg-black' : 'bg-white'"
+          >
             <svg class="w-4 h-4 shrink-0 text-purple-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c0 0 1.5 5.5 4 7.5S23 12 23 12s-4.5 1.5-7 3.5S12 22 12 22s-1.5-5.5-4-7.5S1 12 1 12s4.5-1.5 7-3.5S12 2 12 2z"/></svg>
-            <input
-              v-model="searchInput"
-              @keyup.enter="goToResults"
-              @focus="desktopSugOpen = !!suggestionsList.length"
-              type="text"
-              placeholder="Ask AI for projects..."
-              class="flex-1 bg-transparent outline-none text-sm py-2"
-              :class="isScrolled ? 'text-white placeholder-white/40' : 'text-gray-800 placeholder-gray-400'"
-            />
-            <button
-              v-if="searchInput"
-              @click.stop="searchInput = ''; desktopSugOpen = false"
-              class="shrink-0 transition-colors"
-              :class="isScrolled ? 'text-white/40 hover:text-white' : 'text-gray-300 hover:text-gray-500'"
+            <span
+              class="flex-1 text-sm py-2 select-none"
+              :class="isScrolled ? 'text-white/40' : 'text-gray-400'"
             >
-              <i class="pi pi-times text-xs"></i>
-            </button>
-            <button
-              @click="goToResults"
-              class="shrink-0 h-8 px-4 rounded-full bg-gradient-to-r from-purple-500 to-rose-500 text-white text-sm font-semibold flex items-center justify-center hover:opacity-90 transition-opacity ml-1 whitespace-nowrap"
-            >
-              Ask AI
-            </button>
-          </div>
-        </div>
-        </div>
-
-        <!-- Desktop suggestions dropdown -->
-        <div
-          v-if="desktopSugOpen && suggestionsList.length"
-          class="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden"
-        >
-          <button
-            v-for="(s, i) in suggestionsList"
-            :key="s._id || i"
-            @click="onSuggestionClick(s)"
-            class="w-full flex items-center gap-3 px-5 py-3 hover:bg-gray-50 text-left transition-colors border-b border-gray-50 last:border-0"
-          >
-            <div class="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                 :class="s.type === 'project' ? 'bg-blue-50' : 'bg-emerald-50'">
-              <i class="pi text-sm"
-                 :class="s.type === 'project' ? 'pi-warehouse text-blue-500' : 'pi-building text-emerald-500'"></i>
-            </div>
-            <div class="min-w-0 flex-1">
-              <p class="text-sm font-semibold text-gray-900 truncate">{{ s.title }}</p>
-              <p v-if="s.subtitle" class="text-[11px] text-gray-400 truncate mt-0.5">{{ s.subtitle }}</p>
-            </div>
-            <span class="text-[10px] font-semibold px-2 py-1 rounded-full shrink-0"
-                  :class="s.type === 'project' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'">
-              {{ s.type }}
+              Ask RIOS AI — your real estate assistant…
             </span>
-          </button>
-
-          <!-- View all results -->
-          <button
-            @click="goToResults"
-            class="w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold text-[#EB3131] hover:bg-red-50 transition-colors border-t border-gray-100"
-          >
-            View all results for "{{ searchInput }}"
-            <i class="pi pi-arrow-right text-xs"></i>
-          </button>
-        </div>
+            <span
+              class="shrink-0 h-8 px-4 rounded-full bg-gradient-to-r from-purple-500 to-rose-500 text-white text-sm font-semibold flex items-center justify-center group-hover:opacity-90 transition-opacity whitespace-nowrap"
+            >
+              Ask RIOS
+            </span>
+          </div>
+        </button>
       </div>
 
       <!-- Right: burger + auth -->
@@ -450,73 +222,27 @@ const handleLogout = () => { authStore.logout(); router.push("/"); isMenuOpen.va
       </div>
     </div>
 
-    <!-- Mobile search bar (below topbar, md:hidden) -->
-    <div ref="mobileSearchRef" class="md:hidden px-4 pb-3 relative">
-      <div class="rounded-full p-[1.5px] ai-gradient-border">
-      <div
-        class="flex items-center gap-2 px-4 py-2 rounded-full"
-        :class="isScrolled ? 'bg-black' : 'bg-white'"
-      >
-        <svg class="w-4 h-4 shrink-0 text-purple-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c0 0 1.5 5.5 4 7.5S23 12 23 12s-4.5 1.5-7 3.5S12 22 12 22s-1.5-5.5-4-7.5S1 12 1 12s4.5-1.5 7-3.5S12 2 12 2z"/></svg>
-        <input
-          v-model="searchInput"
-          @keyup.enter="goToResults"
-          @focus="mobileSugOpen = !!suggestionsList.length"
-          type="text"
-          placeholder="Ask AI for projects..."
-          class="flex-1 bg-transparent outline-none text-sm"
-          :class="isScrolled ? 'text-white placeholder-white/40' : 'text-gray-800 placeholder-gray-400'"
-        />
-        <button
-          v-if="searchInput"
-          @click.stop="searchInput = ''; mobileSugOpen = false"
-          class="shrink-0 transition-colors"
-          :class="isScrolled ? 'text-white/40 hover:text-white' : 'text-gray-300 hover:text-gray-500'"
+    <!-- Mobile RIOS AI bar (below topbar, md:hidden) -->
+    <div class="md:hidden px-4 pb-3">
+      <button @click="goToRios" class="w-full rounded-full p-[1.5px] ai-gradient-border text-left cursor-pointer group">
+        <div
+          class="flex items-center gap-2 px-4 py-2 rounded-full"
+          :class="isScrolled ? 'bg-black' : 'bg-white'"
         >
-          <i class="pi pi-times text-xs"></i>
-        </button>
-        <button
-          @click="goToResults"
-          class="shrink-0 h-7 px-3 rounded-full bg-gradient-to-r from-purple-500 to-rose-500 text-white text-xs font-semibold flex items-center justify-center hover:opacity-90 transition-opacity ml-1 whitespace-nowrap"
-        >
-          Ask AI
-        </button>
-      </div>
-      </div>
-
-      <!-- Mobile suggestions dropdown -->
-      <div
-        v-if="mobileSugOpen && suggestionsList.length"
-        class="absolute top-full left-4 right-4 mt-1 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden"
-      >
-        <button
-          v-for="(s, i) in suggestionsList"
-          :key="s._id || i"
-          @click="onSuggestionClick(s)"
-          class="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 text-left transition-colors border-b border-gray-50 last:border-0"
-        >
-          <div class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0"
-               :class="s.type === 'project' ? 'bg-blue-50' : 'bg-emerald-50'">
-            <i class="pi text-xs"
-               :class="s.type === 'project' ? 'pi-warehouse text-blue-500' : 'pi-building text-emerald-500'"></i>
-          </div>
-          <div class="min-w-0 flex-1">
-            <p class="text-sm font-semibold text-gray-900 truncate">{{ s.title }}</p>
-            <p v-if="s.subtitle" class="text-[11px] text-gray-400 truncate mt-0.5">{{ s.subtitle }}</p>
-          </div>
-          <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0"
-                :class="s.type === 'project' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'">
-            {{ s.type }}
+          <svg class="w-4 h-4 shrink-0 text-purple-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c0 0 1.5 5.5 4 7.5S23 12 23 12s-4.5 1.5-7 3.5S12 22 12 22s-1.5-5.5-4-7.5S1 12 1 12s4.5-1.5 7-3.5S12 2 12 2z"/></svg>
+          <span
+            class="flex-1 text-sm select-none"
+            :class="isScrolled ? 'text-white/40' : 'text-gray-400'"
+          >
+            Ask RIOS AI…
           </span>
-        </button>
-        <button
-          @click="goToResults"
-          class="w-full flex items-center justify-center gap-2 py-3 text-sm font-semibold text-[#EB3131] hover:bg-red-50 transition-colors border-t border-gray-100"
-        >
-          View all results for "{{ searchInput }}"
-          <i class="pi pi-arrow-right text-xs"></i>
-        </button>
-      </div>
+          <span
+            class="shrink-0 h-7 px-3 rounded-full bg-gradient-to-r from-purple-500 to-rose-500 text-white text-xs font-semibold flex items-center justify-center group-hover:opacity-90 transition-opacity whitespace-nowrap"
+          >
+            Ask RIOS
+          </span>
+        </div>
+      </button>
     </div>
 
     <!-- Desktop dropdown (lg+) -->

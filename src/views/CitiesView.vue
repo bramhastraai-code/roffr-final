@@ -6,6 +6,7 @@ import { useGroupBuyStore } from "@/stores/groupBuyStore";
 import { storeToRefs } from "pinia";
 import ExploreByVideo from "@/sections/homeSections/ExploreByVideo.vue";
 import FaqSection from "@/sections/homeSections/FaqSection.vue";
+import GroupBuyFomo from "@/components/GroupBuyFomo.vue";
 
 const router = useRouter();
 const projectStore = useProjectStore();
@@ -122,6 +123,11 @@ const goToCity = (project) => {
           />
         </div>
       </div>
+    </section>
+
+    <!-- ── Live group-buy FOMO band ──────────────────────────────── -->
+    <section class="max-w-7xl mx-auto px-4 xl:px-0">
+      <GroupBuyFomo />
     </section>
 
     <!-- ── Trending this week ────────────────────────────────────── -->

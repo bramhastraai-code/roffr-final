@@ -61,6 +61,20 @@ export const useSearchStore = defineStore("search", () => {
         };
       }
 
+      // The backend also returns company docs (kind "builder"), e.g. when a
+      // city matches a builder's address — map them so they don't render as
+      // blank property cards.
+      if (kind === "builder") {
+        return {
+          id: doc?._id || doc?.id,
+          kind: "builder",
+          title: doc?.companyName || "Builder",
+          subtitle: doc?.newAddress || doc?.email || "",
+          image: doc?.logo || doc?.companyLogo || "",
+          doc,
+        };
+      }
+
       // property
       return {
         id: doc?._id || doc?.id,
@@ -107,8 +121,12 @@ export const useSearchStore = defineStore("search", () => {
         page: page.value,
         limit: limit.value,
       };
-      if (term.value) params.term = term.value;
-      if (city.value) params.city = city.value;
+      // Never send `city` to the backend: it only matches builder addresses
+      // and, combined with a term, poisons valid results (verified Aug 2026).
+      // The `term` search spans project/property city, venue and name, so a
+      // selected city is routed through `term` when the user typed nothing.
+      const q = term.value || city.value;
+      if (q) params.term = q;
       if (priceMin.value !== null && priceMin.value !== "") {
         params.priceMin = priceMin.value;
       }

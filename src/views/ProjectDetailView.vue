@@ -10,8 +10,11 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMyDashboardStore } from "@/stores/myDashboardStore";
 import { useGroupBuyStore } from "@/stores/groupBuyStore";
+import { useBrokerStore } from "@/stores/brokerStore";
 import GroupBuyCard from "@/components/GroupBuyCard.vue";
 import GroupBuyJoinModal from "@/components/GroupBuyJoinModal.vue";
+import VisitAssistCard from "@/components/VisitAssistCard.vue";
+import ProjectReels from "@/components/ProjectReels.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -74,12 +77,21 @@ const loadCampaign = async (projectId) => {
 
 // ----- Loaders -----
 const loading = ref(false);
+const brokerStore = useBrokerStore();
+// The channel partner assigned to this project = a broker registered under
+// the project's company. null when the company has no registered partner.
+const assignedBroker = ref(null);
+
 const loadProject = async (id) => {
   if (!id) return;
   loading.value = true;
   try {
     await projectStore.getProjectById(id);
     await loadCampaign(specificProjectDetails.value?._id || id);
+    const companyId =
+      specificProjectDetails.value?.companyId?._id ||
+      specificProjectDetails.value?.companyId;
+    assignedBroker.value = await brokerStore.findBrokerForCompany(companyId);
   } finally {
     loading.value = false;
   }
@@ -139,6 +151,24 @@ const brochureUrl = computed(() => {
   return b;
 });
 const videoUrl = computed(() => project.value?.videoLink || project.value?.tourLink || "");
+
+// Prefilled question for the RIOS AI page (Ask R AI button)
+const riosQuery = computed(() => {
+  const p = project.value || {};
+  return [
+    `Give me a detailed overview of the project "${p.projectName || "this project"}"`,
+    p.builderName ? `by ${p.builderName}` : "",
+    p.region || p.city
+      ? `located in ${[p.region, p.city].filter(Boolean).join(", ")}.`
+      : ".",
+    `Price: ${priceLabel.value}.`,
+    p.projectStatus ? `Status: ${p.projectStatus}.` : "",
+    p.projectReraNumber ? `RERA: ${p.projectReraNumber}.` : "",
+    "Tell me the pros and cons, locality insights, and whether it's a good group-buy deal.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+});
 
 const formatINR = (n) => {
   const num = Number(n || 0);
@@ -645,6 +675,15 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
               </button>
             </div>
 
+            <!-- CARD 4: Live tour + RM assist + Ask R AI -->
+            <VisitAssistCard
+              :tour-link="videoUrl"
+              :context-name="project.projectName || 'this project'"
+              :rios-query="riosQuery"
+              :broker="assignedBroker"
+              @book-visit="openBookVisit"
+            />
+
           </aside>
         </div>
       </div>
@@ -978,6 +1017,9 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
           </div>
         </div>
       </section>
+
+      <!-- ========== PROJECT REELS ========== -->
+      <ProjectReels :project="project" />
     </template>
 
     <!-- Not found -->

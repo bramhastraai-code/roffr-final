@@ -6,6 +6,11 @@ import { useSearchStore } from "@/stores/SearchStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { debounce } from "@/utils/debounce";
 import ProjectCard from "@/components/ProjectCard.vue";
+import PinMap from "@/components/PinMap.vue";
+import { fmtINRShort } from "@/data/properties.js";
+import { bhkConfigsOf } from "@/utils/bhkDisplay";
+import { makeRequest } from "@/request/request";
+import endpoints from "@/request/endpoints";
 
 const router = useRouter();
 const route = useRoute();
@@ -15,7 +20,7 @@ const { items, total, loading, error, fallback, fallbackReason, page, limit } =
   storeToRefs(searchStore);
 
 const projectStore = useProjectStore();
-const { uniqueCitiesData } = storeToRefs(projectStore);
+const { activeCitiesData } = storeToRefs(projectStore);
 
 const localTerm = ref(String(route.query.q || ""));
 const localCity = ref(String(route.query.city || ""));
@@ -77,6 +82,83 @@ const goToProject = (item) => {
   if (!item?.id) return;
   router.push(`/project-details/${item.id}`);
 };
+
+// ── Map ──────────────────────────────────────────────────────────
+// Pins mirror the CURRENT page of results, so pagination/filters and the map
+// always agree. The search endpoint strips latitude/longitude (only glocation
+// survives), so coordinates missing there are backfilled from the
+// project-detail endpoint — real positions only, cached across pages.
+const mobileView = ref("list"); // 'list' | 'map' (mobile toggle; desktop shows both)
+
+const coordsOf = (doc) => {
+  let lat = Number(doc?.latitude);
+  let lng = Number(doc?.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    const m = String(doc?.glocation || "").match(
+      /(-?\d{1,2}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)/,
+    );
+    if (!m) return null;
+    lat = Number(m[1]);
+    lng = Number(m[2]);
+  }
+  return { lat, lng };
+};
+
+// id -> {lat,lng} | null (null = detail fetched, genuinely no coords)
+const coordCache = ref(new Map());
+
+watch(
+  items,
+  async (list) => {
+    const missing = (list || []).filter(
+      (it) => it.id && !coordsOf(it.doc) && !coordCache.value.has(it.id),
+    );
+    if (!missing.length) return;
+    await Promise.all(
+      missing.map(async (it) => {
+        try {
+          const res = await makeRequest(
+            endpoints.getProjectById, "GET", {}, {}, {}, 0, it.id,
+          );
+          coordCache.value.set(it.id, coordsOf(res?.data));
+        } catch {
+          coordCache.value.set(it.id, null);
+        }
+      }),
+    );
+    // Map mutations aren't reactive — reassign to refresh the pins
+    coordCache.value = new Map(coordCache.value);
+  },
+  { immediate: true },
+);
+
+const projectPins = computed(() =>
+  (items.value || [])
+    .map((it) => {
+      const doc = it.doc || {};
+      const pos = coordsOf(doc) || coordCache.value.get(it.id);
+      if (!pos) return null;
+      return {
+        id: it.id,
+        lat: pos.lat,
+        lng: pos.lng,
+        title: it.title,
+        subtitle: [doc.region, doc.city].filter(Boolean).join(", ") || it.subtitle,
+        image: it.image || "",
+        priceLabel: it.minPrice ? fmtINRShort(it.minPrice) : "",
+        chips: [...bhkConfigsOf(doc).slice(0, 2), doc.projectStatus].filter(Boolean),
+      };
+    })
+    .filter(Boolean),
+);
+
+const mapNote = computed(() => {
+  if (loading.value) return "Loading…";
+  if (!total.value) return "";
+  return totalPages.value > 1
+    ? `Page ${page.value}/${totalPages.value} · ${projectPins.value.length} pinned — paginate for more`
+    : `${projectPins.value.length} project${projectPins.value.length === 1 ? "" : "s"} pinned`;
+});
 
 const syncUrl = () => {
   const q = {};
@@ -171,7 +253,7 @@ watch(
 
 onMounted(async () => {
   page.value = parseInt(String(route.query.page || "1"), 10) || 1;
-  await Promise.all([projectStore.getProjectCities(), runFromState()]);
+  await Promise.all([projectStore.getActiveCities(), runFromState()]);
 });
 </script>
 
@@ -210,7 +292,7 @@ onMounted(async () => {
             class="border border-gray-300 rounded-full px-4 py-2 text-sm text-gray-700 bg-white"
           >
             <option value="">All cities</option>
-            <option v-for="c in uniqueCitiesData" :key="c" :value="c">{{ c }}</option>
+            <option v-for="c in activeCitiesData" :key="c" :value="c" class="capitalize">{{ c }}</option>
           </select>
 
           <button
@@ -354,63 +436,105 @@ onMounted(async () => {
         {{ error }}
       </div>
 
-      <div
-        v-if="loading"
-        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-      >
+      <!-- Split: list + map -->
+      <div class="lg:flex lg:gap-5 lg:items-start">
+
+        <!-- Left: list -->
         <div
-          v-for="n in 6"
-          :key="n"
-          class="rounded-2xl bg-white border overflow-hidden animate-pulse"
+          class="lg:w-[55%]"
+          :class="mobileView === 'map' ? 'hidden lg:block' : ''"
         >
-          <div class="h-44 bg-gray-100"></div>
-          <div class="p-4 space-y-2">
-            <div class="h-4 bg-gray-100 rounded w-3/4"></div>
-            <div class="h-3 bg-gray-100 rounded w-1/2"></div>
+          <div
+            v-if="loading"
+            class="grid grid-cols-1 sm:grid-cols-2 gap-4"
+          >
+            <div
+              v-for="n in 4"
+              :key="n"
+              class="rounded-2xl bg-white border overflow-hidden animate-pulse"
+            >
+              <div class="h-44 bg-gray-100"></div>
+              <div class="p-4 space-y-2">
+                <div class="h-4 bg-gray-100 rounded w-3/4"></div>
+                <div class="h-3 bg-gray-100 rounded w-1/2"></div>
+              </div>
+            </div>
           </div>
+
+          <div
+            v-else-if="!items.length"
+            class="text-center py-16 text-gray-500 bg-white rounded-2xl border"
+          >
+            <i class="pi pi-building text-5xl text-gray-300 mb-3 block"></i>
+            <p>No projects match your filters.</p>
+            <p class="text-sm mt-1">Try resetting filters or picking a different city.</p>
+          </div>
+
+          <div
+            v-else
+            class="grid grid-cols-1 sm:grid-cols-2 gap-4"
+          >
+            <ProjectCard
+              v-for="item in items"
+              :key="item.id"
+              :project="item.doc"
+              :show-group-buy="true"
+            />
+          </div>
+
+          <div
+            v-if="totalPages > 1 && !fallback"
+            class="mt-8 flex items-center justify-center gap-2"
+          >
+            <button
+              @click="goToPage(page - 1)"
+              :disabled="page === 1"
+              class="px-3 py-1.5 rounded-full text-sm border border-gray-300 disabled:opacity-50"
+            >
+              <i class="pi pi-chevron-left text-xs"></i> Prev
+            </button>
+            <span class="text-sm text-gray-600 px-2">{{ page }} / {{ totalPages }}</span>
+            <button
+              @click="goToPage(page + 1)"
+              :disabled="page === totalPages"
+              class="px-3 py-1.5 rounded-full text-sm border border-gray-300 disabled:opacity-50"
+            >
+              Next <i class="pi pi-chevron-right text-xs"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Right: map (sticky on desktop, toggled on mobile) -->
+        <div
+          class="lg:w-[45%] lg:sticky lg:top-24 h-[68vh] lg:h-[calc(100vh-130px)] mt-2 lg:mt-0"
+          :class="mobileView === 'map' ? 'block' : 'hidden lg:block'"
+        >
+          <PinMap
+            :pins="projectPins"
+            :note="mapNote"
+            @pin-click="goToProject"
+          />
         </div>
       </div>
 
-      <div
-        v-else-if="!items.length"
-        class="text-center py-16 text-gray-500 bg-white rounded-2xl border"
-      >
-        <i class="pi pi-building text-5xl text-gray-300 mb-3 block"></i>
-        <p>No projects match your filters.</p>
-        <p class="text-sm mt-1">Try resetting filters or picking a different city.</p>
-      </div>
-
-      <div
-        v-else
-        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-      >
-        <ProjectCard
-          v-for="item in items"
-          :key="item.id"
-          :project="item.doc"
-          :show-group-buy="true"
-        />
-      </div>
-
-      <div
-        v-if="totalPages > 1 && !fallback"
-        class="mt-8 flex items-center justify-center gap-2"
-      >
-        <button
-          @click="goToPage(page - 1)"
-          :disabled="page === 1"
-          class="px-3 py-1.5 rounded-full text-sm border border-gray-300 disabled:opacity-50"
-        >
-          <i class="pi pi-chevron-left text-xs"></i> Prev
-        </button>
-        <span class="text-sm text-gray-600 px-2">{{ page }} / {{ totalPages }}</span>
-        <button
-          @click="goToPage(page + 1)"
-          :disabled="page === totalPages"
-          class="px-3 py-1.5 rounded-full text-sm border border-gray-300 disabled:opacity-50"
-        >
-          Next <i class="pi pi-chevron-right text-xs"></i>
-        </button>
+      <!-- Mobile list/map toggle -->
+      <div class="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
+        <div class="flex items-center bg-gray-900 rounded-full shadow-2xl p-1">
+          <button
+            @click="mobileView = 'list'"
+            class="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-colors"
+            :class="mobileView === 'list' ? 'bg-white text-gray-900' : 'text-white/80'"
+          >
+            <i class="pi pi-list text-xs"></i> List
+          </button>
+          <button
+            @click="mobileView = 'map'"
+            class="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-colors"
+            :class="mobileView === 'map' ? 'bg-white text-gray-900' : 'text-white/80'"
+          >
+            <i class="pi pi-map text-xs"></i> Map
+          </button>
+        </div>
       </div>
     </section>
   </main>
