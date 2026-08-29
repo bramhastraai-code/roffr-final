@@ -215,6 +215,12 @@ const router = createRouter({
           path: "/cities/:city",
           component: CityProjectsView
         },
+        {
+          // Catch-all. Previously an unknown URL rendered an empty layout.
+          name: "not-found",
+          path: "/:pathMatch(.*)*",
+          component: () => import('@/views/NotFoundView.vue')
+        },
       ]
     },
     {

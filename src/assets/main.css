@@ -2,13 +2,16 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,100..900;1,100..900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
 
+/* Motion tokens, reveal system, loop gating, reduced-motion.
+   Read this file to understand all animation on the site.
+   (CSS requires every @import to precede other statements, hence its
+   position above the Tailwind directives; the reduced-motion rules use
+   !important so they still win over utilities.) */
+@import './motion.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Motion tokens, reveal system, loop gating, reduced-motion.
-   Read this file to understand all animation on the site. */
-@import './motion.css';
 
 :root {
   --black: #0A0A0A;

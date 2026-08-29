@@ -12,6 +12,7 @@ import ExploreByVideo from '@/sections/homeSections/ExploreByVideo.vue';
 import BlogsInsights from '@/sections/homeSections/BlogsInsights.vue';
 import FindRealtorBanner from '@/sections/homeSections/FindRealtorBanner.vue';
 import FaqSection from '@/sections/homeSections/FaqSection.vue';
+import RecentlyViewedSection from '@/sections/homeSections/RecentlyViewedSection.vue';
 </script>
 
 <template>
@@ -26,6 +27,11 @@ import FaqSection from '@/sections/homeSections/FaqSection.vue';
          inside the component for the dropdowns. -->
     <Reveal>
       <HeroSearchBar />
+    </Reveal>
+
+    <!-- Only renders for returning visitors who have viewed something -->
+    <Reveal>
+      <RecentlyViewedSection />
     </Reveal>
 
     <Reveal>

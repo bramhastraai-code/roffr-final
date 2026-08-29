@@ -3,8 +3,12 @@ import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { fmtINRShort, WHATSAPP } from '@/data/properties.js'
 import { bhkConfigsOf } from '@/utils/bhkDisplay'
+import { rateComparison } from '@/utils/priceInsight'
 import { useGroupBuyStore } from '@/stores/groupBuyStore'
+import { useProjectStore } from '@/stores/projectStore'
+import { useCompareStore } from '@/stores/compareStore'
 import { useAuthStore } from '@/stores/authStore'
+import { storeToRefs } from 'pinia'
 import GroupBuyJoinModal from '@/components/GroupBuyJoinModal.vue'
 
 const props = defineProps({
@@ -16,6 +20,29 @@ const props = defineProps({
 const router = useRouter()
 const groupBuyStore = useGroupBuyStore()
 const authStore = useAuthStore()
+
+// ₹/sqft, and how it compares to the locality median. Both come from data the
+// API already returns; the helper returns null when the value can't be
+// trusted or the local sample is too small to quote.
+const projectStore = useProjectStore()
+const { rateIndex } = storeToRefs(projectStore)
+onMounted(() => projectStore.getRateIndex())
+const priceInsight = computed(() => rateComparison(props.project, rateIndex.value))
+
+// ── Compare ────────────────────────────────────────────────────────
+const compare = useCompareStore()
+const inCompare = computed(() => compare.has(props.project._id))
+const compareFull = ref(false)
+
+const toggleCompare = (e) => {
+  e.stopPropagation()
+  const ok = compare.toggle(props.project)
+  if (!ok) {
+    // List is full — flash the hint rather than silently doing nothing
+    compareFull.value = true
+    setTimeout(() => { compareFull.value = false }, 2200)
+  }
+}
 
 const go = () => {
   if (!props.project._id) return
@@ -245,6 +272,26 @@ const handleJoined = async () => {
         </span>
       </div>
 
+      <!-- Compare toggle -->
+      <button
+        @click="toggleCompare"
+        class="absolute top-4 right-4 flex items-center gap-1.5 rounded-full pl-2 pr-2.5 py-1.5 text-[11px] font-bold shadow-sm transition-colors duration-200"
+        :class="inCompare
+          ? 'bg-gray-900 text-white'
+          : 'bg-white/90 text-gray-700 hover:bg-white'"
+        :aria-pressed="inCompare"
+        :title="inCompare ? 'Remove from comparison' : 'Add to comparison'"
+      >
+        <i class="pi text-[10px]" :class="inCompare ? 'pi-check' : 'pi-plus'"></i>
+        Compare
+      </button>
+      <span
+        v-if="compareFull"
+        class="absolute top-14 right-4 bg-gray-900 text-white text-[10px] font-semibold px-2.5 py-1.5 rounded-md shadow-lg"
+      >
+        You can compare up to 3
+      </span>
+
       <!-- Builder chip -->
       <div
         v-if="builderName"
@@ -309,6 +356,28 @@ const handleJoined = async () => {
         </div>
       </div>
       <div v-else class="text-base font-bold text-gray-800">{{ originalPriceLabel }}</div>
+
+      <!-- Rate + locality context. The comparison only appears when the
+           locality has enough projects to make the median meaningful. -->
+      <div v-if="priceInsight" class="flex items-center gap-2 mt-2.5 flex-wrap">
+        <span class="text-[12px] font-bold text-gray-700">{{ priceInsight.rateLabel }}</span>
+        <span
+          v-if="priceInsight.text"
+          class="text-[11px] font-semibold px-2 py-0.5 rounded-md border"
+          :class="priceInsight.direction === 'below'
+            ? 'text-green-700 bg-green-50 border-green-100'
+            : priceInsight.direction === 'above'
+              ? 'text-amber-700 bg-amber-50 border-amber-100'
+              : 'text-gray-600 bg-gray-50 border-gray-200'"
+        >
+          <i
+            v-if="priceInsight.direction !== 'at'"
+            class="pi text-[9px] mr-0.5"
+            :class="priceInsight.direction === 'below' ? 'pi-arrow-down' : 'pi-arrow-up'"
+          ></i>
+          {{ priceInsight.text }}
+        </span>
+      </div>
 
       <!-- Divider -->
       <div class="border-t border-gray-100 my-4"></div>

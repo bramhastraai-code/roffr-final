@@ -15,6 +15,8 @@ import GroupBuyCard from "@/components/GroupBuyCard.vue";
 import GroupBuyJoinModal from "@/components/GroupBuyJoinModal.vue";
 import VisitAssistCard from "@/components/VisitAssistCard.vue";
 import ProjectReels from "@/components/ProjectReels.vue";
+import SimilarProjects from "@/components/SimilarProjects.vue";
+import { rememberProject } from "@/composables/useRecentlyViewed";
 import { bhkConfigsOf } from "@/utils/bhkDisplay";
 import { amenityMeta } from "@/utils/amenityDisplay";
 
@@ -89,6 +91,7 @@ const loadProject = async (id) => {
   loading.value = true;
   try {
     await projectStore.getProjectById(id);
+    rememberProject(specificProjectDetails.value);
     await loadCampaign(specificProjectDetails.value?._id || id);
     const companyId =
       specificProjectDetails.value?.companyId?._id ||
@@ -147,6 +150,21 @@ const brochureUrl = computed(() => {
   return b;
 });
 const videoUrl = computed(() => project.value?.videoLink || project.value?.tourLink || "");
+
+// Builder footprint, counted from the market sample the store already holds.
+// Only reports what can actually be counted — no invented totals.
+const { marketSample } = storeToRefs(projectStore);
+const builderStats = computed(() => {
+  const name = String(project.value?.builderName || "").trim().toLowerCase();
+  if (!name) return { projectCount: 0, cityCount: 0 };
+  const mine = (marketSample.value || []).filter(
+    (p) => String(p.builderName || "").trim().toLowerCase() === name,
+  );
+  const cities = new Set(
+    mine.map((p) => String(p.city || "").trim().toLowerCase()).filter(Boolean),
+  );
+  return { projectCount: mine.length, cityCount: cities.size };
+});
 
 // Prefilled question for the RIOS AI page (Ask R AI button)
 const riosQuery = computed(() => {
@@ -664,8 +682,21 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
 
               <!-- Stats pill -->
               <div class="bg-[#F5EDE0] rounded-xl px-4 py-3">
-                <p class="text-sm font-bold text-gray-800">130+ Projects Delivered</p>
-                <p class="text-xs text-gray-500 mt-0.5">Trusted by 1300+ Families</p>
+                <!-- Real counts derived from the catalogue, replacing the
+                     hardcoded "130+ Projects / 1300+ Families" that showed
+                     identically for every builder regardless of size. -->
+                <p class="text-sm font-bold text-gray-800">
+                  {{ builderStats.projectCount || "—" }}
+                  {{ builderStats.projectCount === 1 ? "project" : "projects" }} listed
+                </p>
+                <p class="text-xs text-gray-500 mt-0.5">
+                  <span v-if="builderStats.cityCount">
+                    Across {{ builderStats.cityCount }}
+                    {{ builderStats.cityCount === 1 ? "city" : "cities" }}
+                  </span>
+                  <span v-if="builderStats.cityCount && project.since"> · </span>
+                  <span v-if="project.since">Since {{ project.since }}</span>
+                </p>
               </div>
 
               <!-- View profile button -->
@@ -1027,6 +1058,9 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
           </div>
         </div>
       </section>
+
+      <!-- ========== SIMILAR PROJECTS ========== -->
+      <SimilarProjects :project="project" />
 
       <!-- ========== PROJECT REELS ========== -->
       <ProjectReels :project="project" />

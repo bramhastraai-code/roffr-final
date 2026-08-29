@@ -8,6 +8,8 @@ export const useBrokerStore = defineStore("broker", () => {
   const brokerData = ref({});
   const brokerList = ref([]);
   const brokerListTotal = ref(0);
+  // Exposed so views can show a real error state instead of an empty one.
+  const brokerListError = ref(false);
   const brokerListPage = ref(1);
   const brokerListPageSize = ref(12);
 
@@ -78,8 +80,10 @@ export const useBrokerStore = defineStore("broker", () => {
       brokerListPage.value = page;
       brokerListTotal.value =
         payload?.total ?? payload?.totalUsers ?? brokerList.value.length;
+      brokerListError.value = false;
     } catch (error) {
       console.error("Error in fetching broker list", error);
+      brokerListError.value = true;
       if (!append) {
         brokerList.value = [];
         brokerListTotal.value = 0;
@@ -149,6 +153,7 @@ export const useBrokerStore = defineStore("broker", () => {
     brokerData,
     brokerList,
     brokerListTotal,
+    brokerListError,
     brokerListPage,
     brokerListPageSize,
     reset,

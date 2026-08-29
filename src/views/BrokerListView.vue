@@ -6,24 +6,34 @@ import { useBrokerStore } from "@/stores/brokerStore";
 import { debounce } from "@/utils/debounce";
 import { ratingOf, starIcon, brokerTypeOf, initialsOf as initials, hashOf } from "@/utils/brokerDisplay";
 import PinMap from "@/components/PinMap.vue";
+import CardSkeleton from "@/components/ui/CardSkeleton.vue";
+import StateBlock from "@/components/ui/StateBlock.vue";
 
 const router = useRouter();
 const brokerStore = useBrokerStore();
-const { brokerList, brokerListTotal } = storeToRefs(brokerStore);
+const { brokerList, brokerListTotal, brokerListError } = storeToRefs(brokerStore);
 
 const searchInput = ref("");
 const searchTerm = ref("");
 
+// This page had no loading flag at all, so it rendered "No channel partners
+// found" until data arrived — a false negative on every single page load.
+const loading = ref(true);
+
+const fetchPartners = async () => {
+  loading.value = true;
+  await brokerStore.getBrokerList({ search: searchTerm.value });
+  loading.value = false;
+};
+
 const liveSearch = debounce(async () => {
   searchTerm.value = searchInput.value.trim();
-  await brokerStore.getBrokerList({ search: searchTerm.value });
+  await fetchPartners();
 }, 300);
 
 watch(searchInput, () => liveSearch());
 
-onMounted(async () => {
-  await brokerStore.getBrokerList();
-});
+onMounted(fetchPartners);
 
 const partners = computed(() => {
   const list = brokerList.value;
@@ -143,13 +153,28 @@ const mapNote = computed(() =>
         class="lg:w-[55%]"
         :class="mobileView === 'map' ? 'hidden lg:block' : ''"
       >
-        <div
-          v-if="!partners.length"
-          class="text-center py-16 text-gray-500 bg-white rounded-2xl border"
-        >
-          <i class="pi pi-users text-5xl text-gray-300 mb-4 block"></i>
-          <p>No channel partners found.</p>
-        </div>
+        <!-- Loading: a skeleton, not the empty state -->
+        <CardSkeleton v-if="loading && !partners.length" variant="row" :count="6" />
+
+        <StateBlock
+          v-else-if="brokerListError && !partners.length"
+          variant="error"
+          title="Couldn't load channel partners"
+          message="Something went wrong reaching our servers. Check your connection and try again."
+          action-label="Retry"
+          @action="fetchPartners"
+        />
+
+        <StateBlock
+          v-else-if="!partners.length"
+          icon="pi-users"
+          :title="searchTerm ? `No partners match “${searchTerm}”` : 'No channel partners yet'"
+          :message="searchTerm
+            ? 'Try a different name, firm, or city.'
+            : 'Verified partners will appear here as they join the network.'"
+          :action-label="searchTerm ? 'Clear search' : ''"
+          @action="searchInput = ''"
+        />
 
         <div
           v-else

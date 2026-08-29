@@ -2,6 +2,7 @@ import { makeRequest } from "@/request/request";
 import { defineStore } from "pinia";
 import endpoints from "@/request/endpoints";
 import { ref } from "vue";
+import { buildRateIndex } from "@/utils/priceInsight";
 
 export const useProjectStore = defineStore("project", () => {
   const projectAffordablityData = ref([]);
@@ -169,43 +170,64 @@ export const useProjectStore = defineStore("project", () => {
     }
   };
 
-  // Cities that actually have projects, most inventory first. Derived from a
-  // 300-project sample because /projects/unique-cities is a raw dump full of
-  // junk entries with zero listings. Session-cached.
+  // A 300-project sample, fetched once per session, used to derive two things
+  // without any extra request: the list of cities that actually have
+  // inventory, and the median ₹/sqft per locality for price comparisons.
   const activeCitiesData = ref([]);
-  let activeCitiesPromise = null;
-  const getActiveCities = () => {
-    if (activeCitiesData.value.length) return Promise.resolve(activeCitiesData.value);
-    if (!activeCitiesPromise) {
-      activeCitiesPromise = (async () => {
+  const rateIndex = ref(null);
+  const marketSample = ref([]);
+  let marketPromise = null;
+
+  const loadMarketSample = () => {
+    if (marketPromise) return marketPromise;
+    marketPromise = (async () => {
+      try {
+        const res = await makeRequest(
+          endpoints.getProjectProperty,
+          "GET",
+          {},
+          {},
+          { type: "project", pageSize: 300, pageNumber: 1 },
+          0
+        );
+        const projects = res?.data?.projects || [];
+        marketSample.value = projects;
+
+        // Cities, most inventory first
         const counts = new Map();
-        try {
-          const res = await makeRequest(
-            endpoints.getProjectProperty,
-            "GET",
-            {},
-            {},
-            { type: "project", pageSize: 300, pageNumber: 1 },
-            0
-          );
-          (res?.data?.projects || []).forEach((p) => {
-            const raw = String(p.city || "").trim();
-            if (!raw) return;
-            const key = raw.toLowerCase();
-            const entry = counts.get(key) || { raw, count: 0 };
-            entry.count += 1;
-            counts.set(key, entry);
-          });
-        } catch (error) {
-          console.error("Error in building active cities", error);
-        }
+        projects.forEach((p) => {
+          const raw = String(p.city || "").trim();
+          if (!raw) return;
+          const key = raw.toLowerCase();
+          const entry = counts.get(key) || { raw, count: 0 };
+          entry.count += 1;
+          counts.set(key, entry);
+        });
         activeCitiesData.value = [...counts.values()]
           .sort((a, b) => b.count - a.count)
           .map((e) => e.raw);
-        return activeCitiesData.value;
-      })();
-    }
-    return activeCitiesPromise;
+
+        // Median ₹/sqft per locality
+        rateIndex.value = buildRateIndex(projects);
+      } catch (error) {
+        console.error("Error in loading market sample", error);
+        marketPromise = null; // allow a retry
+      }
+      return marketSample.value;
+    })();
+    return marketPromise;
+  };
+
+  const getActiveCities = async () => {
+    if (activeCitiesData.value.length) return activeCitiesData.value;
+    await loadMarketSample();
+    return activeCitiesData.value;
+  };
+
+  const getRateIndex = async () => {
+    if (rateIndex.value) return rateIndex.value;
+    await loadMarketSample();
+    return rateIndex.value;
   };
 
 
@@ -343,6 +365,9 @@ export const useProjectStore = defineStore("project", () => {
     uniqueCitiesData,
     getActiveCities,
     activeCitiesData,
+    getRateIndex,
+    rateIndex,
+    marketSample,
     joinProjectGroup,
     wishlistData,
     removeFromWishlist,

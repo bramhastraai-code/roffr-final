@@ -5,6 +5,8 @@ import { useProjectStore } from "@/stores/projectStore";
 import { storeToRefs } from "pinia";
 import ProjectCard from "@/components/ProjectCard.vue";
 import GroupBuyFomo from "@/components/GroupBuyFomo.vue";
+import CardSkeleton from "@/components/ui/CardSkeleton.vue";
+import StateBlock from "@/components/ui/StateBlock.vue";
 
 const route  = useRoute();
 const router = useRouter();
@@ -17,12 +19,23 @@ const page = ref(1);
 // Accumulated across pages; the store ref only holds the latest page
 const projects = ref([]);
 
+// This had no try/catch, so a failed request silently rendered the empty
+// state — indistinguishable from "this city genuinely has no projects".
+const loadError = ref(false);
+
 const fetchProjects = async () => {
   loading.value = true;
+  loadError.value = false;
   page.value = 1;
-  await projectStore.getProjectList("project", "", route.params.city, 1);
-  projects.value = [...(projectPropertyListData.value || [])];
-  loading.value = false;
+  try {
+    await projectStore.getProjectList("project", "", route.params.city, 1);
+    projects.value = [...(projectPropertyListData.value || [])];
+  } catch {
+    loadError.value = true;
+    projects.value = [];
+  } finally {
+    loading.value = false;
+  }
 };
 
 const loadMore = async () => {
@@ -75,24 +88,27 @@ const cityLabel = () => {
     <GroupBuyFomo :city="String(route.params.city || '')" />
 
     <!-- Skeleton -->
-    <div v-if="loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      <div v-for="i in 6" :key="i" class="h-[320px] rounded-2xl bg-gray-100 animate-pulse"></div>
-    </div>
+    <CardSkeleton v-if="loading" :count="6" />
 
-    <!-- Empty state -->
-    <div
+    <!-- Error — distinct from "this city has no projects" -->
+    <StateBlock
+      v-else-if="loadError"
+      variant="error"
+      title="Couldn't load projects"
+      :message="`Something went wrong fetching projects in ${cityLabel()}.`"
+      action-label="Try again"
+      @action="fetchProjects"
+    />
+
+    <!-- Empty -->
+    <StateBlock
       v-else-if="!projects.length"
-      class="text-center py-20 text-gray-400"
-    >
-      <i class="pi pi-building text-5xl opacity-25 block mb-4"></i>
-      <p class="text-base font-medium">No projects found in {{ cityLabel() }}</p>
-      <button
-        @click="router.push('/cities')"
-        class="mt-4 text-sm text-[#EB3131] font-semibold hover:underline"
-      >
-        Browse other cities
-      </button>
-    </div>
+      icon="pi-building"
+      :title="`No projects in ${cityLabel()} yet`"
+      message="We're adding new projects regularly. Try a nearby city in the meantime."
+      action-label="Browse other cities"
+      @action="router.push('/cities')"
+    />
 
     <!-- Project grid -->
     <template v-else>

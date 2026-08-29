@@ -4,6 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { useBrokerStore } from "@/stores/brokerStore";
 import { ratingOf, starIcon, brokerTypeOf, initialsOf as initials } from "@/utils/brokerDisplay";
+import StateBlock from "@/components/ui/StateBlock.vue";
 
 const route = useRoute();
 const router = useRouter();
@@ -24,10 +25,18 @@ const contactForm = ref({
 const broker = computed(() => brokerData.value?.user ?? brokerData.value ?? {});
 const totalSiteVisits = computed(() => brokerData.value?.totalSiteVisits ?? 0);
 
+// This page previously had no loading, empty, or error state whatsoever — a
+// slow or failed request rendered a page of blank fields.
+const loading = ref(true);
+
 const loadBroker = async (id) => {
   if (!id) return;
+  loading.value = true;
   await brokerStore.getBrokerData(id);
+  loading.value = false;
 };
+
+const notFound = computed(() => !loading.value && !broker.value?._id);
 
 onMounted(() => {
   loadBroker(route.params.id);
@@ -63,7 +72,38 @@ const handleConnect = () => {
       <i class="pi pi-arrow-left text-xs"></i> Back
     </button>
 
-    <div class="flex flex-col lg:flex-row gap-6">
+    <!-- Loading -->
+    <div v-if="loading" class="flex flex-col lg:flex-row gap-6">
+      <div class="w-full lg:w-[70%] space-y-4">
+        <div class="flex items-center gap-4">
+          <div class="h-20 w-20 rounded-full bg-gray-100 motion-safe:animate-pulse"></div>
+          <div class="space-y-2.5 flex-1">
+            <div class="h-5 w-48 bg-gray-100 rounded motion-safe:animate-pulse"></div>
+            <div class="h-3.5 w-32 bg-gray-100 rounded motion-safe:animate-pulse"></div>
+          </div>
+        </div>
+        <div class="h-px bg-gray-100"></div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div v-for="n in 3" :key="n" class="space-y-2">
+            <div class="h-3 w-20 bg-gray-100 rounded motion-safe:animate-pulse"></div>
+            <div class="h-4 w-28 bg-gray-100 rounded motion-safe:animate-pulse"></div>
+          </div>
+        </div>
+      </div>
+      <div class="w-full lg:w-[30%] h-72 rounded-card bg-gray-100 motion-safe:animate-pulse"></div>
+    </div>
+
+    <!-- Not found / failed to load -->
+    <StateBlock
+      v-else-if="notFound"
+      variant="error"
+      title="Partner not found"
+      message="This channel partner may have been removed, or the link is incorrect."
+      action-label="Browse all partners"
+      @action="router.push('/channel-partners')"
+    />
+
+    <div v-else class="flex flex-col lg:flex-row gap-6">
       <!-- LEFT (70%) -->
       <div class="w-full lg:w-[70%]">
         <div class="flex items-center gap-4 mb-4">
