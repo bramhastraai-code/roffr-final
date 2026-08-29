@@ -1,5 +1,5 @@
 <script setup>
-import GsapFade from '@/components/GsapFade.vue'
+import Reveal from '@/components/Reveal.vue'
 
 import HeroSection from '@/sections/channelPartnerSection2/HeroSection.vue';
 import BestCrmSection from '@/sections/channelPartnerSection2/BestCrmSection.vue';
@@ -9,20 +9,20 @@ import WorkSection from '@/sections/homeSections/WorkSection.vue';
 
 <template>
   <main>
-    <GsapFade direction="bottom" :duration="0.7" :triggerOffset="120">
+    <Reveal>
       <HeroSection />
-    </GsapFade>
+    </Reveal>
 
-    <GsapFade direction="bottom" :duration="0.7" :triggerOffset="120">
+    <Reveal>
       <BestCrmSection />
-    </GsapFade>
+    </Reveal>
 
-    <GsapFade direction="bottom" :duration="0.7" :triggerOffset="120">
+    <Reveal>
       <UnbeatableDealsSection />
-    </GsapFade>
+    </Reveal>
 
-    <GsapFade direction="bottom" :duration="0.7" :triggerOffset="120">
+    <Reveal>
       <WorkSection />
-    </GsapFade>
+    </Reveal>
   </main>
 </template>

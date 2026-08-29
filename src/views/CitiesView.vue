@@ -120,7 +120,7 @@ const goToCity = (project) => {
             src="/images/GroupBuy/hero.webp"
             alt="Group Buying"
             class="h-full w-full object-cover object-center"
-          />
+           loading="lazy" decoding="async" />
         </div>
       </div>
     </section>
@@ -158,7 +158,7 @@ const goToCity = (project) => {
             :src="projectCover(project)"
             :alt="project.city"
             class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-          />
+           loading="lazy" decoding="async" />
           <div v-else class="w-full h-full bg-gradient-to-br from-emerald-400 to-teal-600"></div>
 
           <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>

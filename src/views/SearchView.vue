@@ -508,7 +508,7 @@ onMounted(async () => {
               :src="item.image"
               :alt="item.title"
               class="w-full h-full object-cover"
-            />
+             loading="lazy" decoding="async" />
             <div
               v-else
               class="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900"
@@ -536,7 +536,7 @@ onMounted(async () => {
                 :src="item.doc.builderLogo"
                 class="w-5 h-5 rounded-full object-cover shrink-0"
                 alt=""
-              />
+               loading="lazy" decoding="async" />
               <span
                 v-else
                 class="w-5 h-5 rounded-full bg-[#1a2b5f] text-white text-[9px] font-bold flex items-center justify-center shrink-0"

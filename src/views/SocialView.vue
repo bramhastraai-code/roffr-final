@@ -269,7 +269,7 @@ const pendingRequestCount = (postId) =>
               :src="me.avatar"
               :alt="me.name"
               class="h-full w-full rounded-full object-cover"
-            />
+             loading="lazy" decoding="async" />
             <span v-else>{{ initials(me.name) }}</span>
           </div>
           <div class="flex-1">
@@ -352,7 +352,7 @@ const pendingRequestCount = (postId) =>
                 :src="post.authorAvatar"
                 :alt="post.authorName"
                 class="h-full w-full rounded-full object-cover"
-              />
+               loading="lazy" decoding="async" />
               <span v-else>{{ initials(post.authorName) }}</span>
             </div>
             <div class="flex-1 min-w-0">
@@ -395,7 +395,7 @@ const pendingRequestCount = (postId) =>
               :key="i"
               :src="src"
               class="rounded-xl w-full max-h-72 object-cover border"
-            />
+             loading="lazy" decoding="async" />
           </div>
 
           <footer class="mt-4 flex items-center gap-6 text-xs text-gray-500 flex-wrap">
@@ -449,7 +449,7 @@ const pendingRequestCount = (postId) =>
                     :src="req.brokerAvatar"
                     :alt="req.brokerName"
                     class="h-full w-full rounded-full object-cover"
-                  />
+                   loading="lazy" decoding="async" />
                   <span v-else>{{ initials(req.brokerName) }}</span>
                 </div>
                 <div class="flex-1 min-w-0">
@@ -528,7 +528,7 @@ const pendingRequestCount = (postId) =>
                   :src="comment.authorAvatar"
                   :alt="comment.authorName"
                   class="h-full w-full rounded-full object-cover"
-                />
+                 loading="lazy" decoding="async" />
                 <span v-else>{{ initials(comment.authorName) }}</span>
               </div>
               <div class="flex-1 min-w-0">

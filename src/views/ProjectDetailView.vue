@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, onBeforeUnmount, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { storeToRefs } from "pinia";
 import { Swiper, SwiperSlide } from "swiper/vue";
@@ -99,19 +99,12 @@ const loadProject = async (id) => {
   }
 };
 
-// ----- Avatar swap animation -----
-const step = ref(0);
-let swapInterval = null;
-const GAP = 34;
-
-const avatarLeft = (idx, total) => ((idx + step.value) % Math.min(total, 3)) * GAP;
-const avatarZ    = (idx, total) => { const c = Math.min(total, 3); return c - (idx + step.value) % c; };
-
+// The avatar-shuffle setInterval was removed: it transitioned `left` (a layout
+// property) on three elements every 2s forever. They are a static overlapped
+// stack now — same social proof, no steady-state cost.
 onMounted(() => {
   loadProject(route.params.id);
-  swapInterval = setInterval(() => { step.value = (step.value + 1) % 3; }, 2000);
 });
-onBeforeUnmount(() => clearInterval(swapInterval));
 
 watch(
   () => route.params.id,
@@ -471,10 +464,13 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
               class="relative rounded-2xl overflow-hidden bg-gray-100 h-[240px] sm:h-[380px] cursor-zoom-in group"
               @click="openCarousel(activeImageIdx)"
             >
+              <!-- Above the fold: this is the LCP image, load it eagerly -->
               <img
                 :src="activeImage"
                 :alt="project.projectName"
                 class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                fetchpriority="high"
+                decoding="async"
               />
               <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300 flex items-center justify-center">
                 <span class="opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-black/50 text-white text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5">
@@ -495,7 +491,7 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
                 class="rounded-xl overflow-hidden h-16 w-24 shrink-0 border-2 transition"
                 :class="activeImageIdx === idx ? 'border-[#EB3131]' : 'border-transparent opacity-70 hover:opacity-100'"
               >
-                <img :src="img" class="w-full h-full object-cover" />
+                <img :src="img" class="w-full h-full object-cover"  loading="lazy" decoding="async" />
               </button>
             </div>
 
@@ -564,22 +560,18 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
 
                 <!-- Avatars with swap animation -->
                 <div class="flex items-center gap-2.5 mt-4">
-                  <div
-                    class="relative shrink-0"
-                    :style="{ width: `${44 + (Math.min(groupBuyJoinedCount, 3) - 1) * GAP}px`, height: '44px' }"
-                  >
-                    <div
+                  <div class="flex shrink-0">
+                    <img
                       v-for="(_, idx) in Math.min(groupBuyJoinedCount, 3)"
                       :key="idx"
-                      class="w-11 h-11 rounded-full border-2 border-white overflow-hidden shadow-md absolute top-0 transition-all duration-[650ms] ease-in-out"
-                      :style="{ left: `${avatarLeft(idx, groupBuyJoinedCount)}px`, zIndex: avatarZ(idx, groupBuyJoinedCount) }"
-                    >
-                      <img
-                        :src="`/dummy/dummy-case${(idx % 3) + 1}.webp`"
-                        class="w-full h-full object-cover blur-[1.5px]"
-                        alt="member"
-                      />
-                    </div>
+                      :src="`/dummy/dummy-case${(idx % 3) + 1}.webp`"
+                      class="w-11 h-11 rounded-full border-2 border-white object-cover shadow-md blur-[1.5px] -ml-2.5 first:ml-0"
+                      loading="lazy"
+                      decoding="async"
+                      width="44"
+                      height="44"
+                      alt="member"
+                    />
                   </div>
                   <span class="text-white/70 font-bold">+</span>
                   <div class="w-10 h-10 rounded-full border-2 border-dashed border-white/50 bg-white/10 flex items-center justify-center text-white font-bold text-sm shrink-0">
@@ -593,7 +585,7 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
                 <p class="text-sm text-white mb-3">
                   <span class="font-bold">You?</span> Become {{ memberOrdinal }} member
                 </p>
-                <div :class="isJoinable ? 'p-[2px] rounded-xl join-btn-border' : ''">
+                <div :class="isJoinable ? 'p-[2px] rounded-xl join-btn-border' : ''" data-loop>
                   <button
                     @click="openStickyJoinModal"
                     :disabled="!isJoinable"
@@ -648,7 +640,7 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
                     :src="project.builderLogo"
                     :alt="project.builderName"
                     class="w-14 h-14 rounded-full object-cover border border-gray-200"
-                  />
+                   loading="lazy" decoding="async" />
                   <div
                     v-else
                     class="w-14 h-14 rounded-full bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center text-2xl font-extrabold text-amber-700 border border-amber-200"
@@ -824,7 +816,7 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
             <div class="rounded-2xl overflow-hidden">
               <Swiper :space-between="10" :slides-per-view="1">
                 <SwiperSlide v-for="(img, idx) in heroImages" :key="idx">
-                  <img :src="img" class="w-full h-[300px] sm:h-[500px] object-cover" />
+                  <img :src="img" class="w-full h-[300px] sm:h-[500px] object-cover"  loading="lazy" decoding="async" />
                 </SwiperSlide>
               </Swiper>
             </div>
@@ -834,7 +826,7 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
                 :key="idx"
                 :src="img"
                 class="rounded-lg h-28 w-full object-cover border"
-              />
+               loading="lazy" decoding="async" />
             </div>
           </div>
         </div>
@@ -901,7 +893,7 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
                   :src="f.iconImage"
                   :alt="f.name"
                   class="h-14 w-14 object-contain group-hover:scale-110 transition-transform duration-300"
-                />
+                 loading="lazy" decoding="async" />
                 <span
                   v-else
                   class="w-14 h-14 rounded-2xl flex items-center justify-center text-[26px] group-hover:scale-110 transition-transform duration-300"
@@ -929,7 +921,7 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
                 :src="project.masterPlan"
                 alt="Master plan"
                 class="w-full max-h-[600px] object-contain"
-              />
+               loading="lazy" decoding="async" />
             </div>
           </div>
 
@@ -943,7 +935,7 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
                 :key="i"
                 class="bg-white border rounded-2xl p-3"
               >
-                <img :src="fp" :alt="`Floor plan ${i + 1}`" class="w-full h-72 object-contain" />
+                <img :src="fp" :alt="`Floor plan ${i + 1}`" class="w-full h-72 object-contain"  loading="lazy" decoding="async" />
               </div>
             </div>
           </div>
@@ -1175,7 +1167,7 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
                 :src="img"
                 :alt="`${project.projectName} – photo ${idx + 1}`"
                 class="max-h-full max-w-full object-contain select-none"
-              />
+               loading="lazy" decoding="async" />
             </SwiperSlide>
           </Swiper>
         </div>
@@ -1189,7 +1181,7 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
             class="w-14 h-10 rounded-lg overflow-hidden border-2 shrink-0 transition"
             :class="activeCarouselIdx === idx ? 'border-white' : 'border-transparent opacity-50 hover:opacity-80'"
           >
-            <img :src="img" class="w-full h-full object-cover" />
+            <img :src="img" class="w-full h-full object-cover"  loading="lazy" decoding="async" />
           </button>
         </div>
       </div>
@@ -1291,36 +1283,52 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
   to   { opacity: 1; transform: translateX(0); }
 }
 
-/* Continuous pulsing glow ring — only when a live campaign exists */
+/* Live campaign card — static elevated shadow. This used to animate
+   box-shadow forever, repainting the whole sidebar card every frame. */
 .group-buy-card--live {
-  animation: card-glow 2.8s ease-in-out infinite;
-}
-@keyframes card-glow {
-  0%, 100% { box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
-  50%       { box-shadow: 0 6px 28px rgba(235,49,49,0.30), 0 0 0 3px rgba(235,49,49,0.12); }
+  box-shadow: 0 6px 24px rgba(235, 49, 49, 0.22), 0 0 0 2px rgba(235, 49, 49, 0.10);
 }
 
-/* Savings number — gentle scale pulse */
+/* Savings number — pops once on entrance instead of pulsing forever.
+   A number that lands once reads as a stronger cue than one that becomes
+   wallpaper after five seconds. */
 .savings-pulse {
   display: inline-block;
-  animation: savings-pop 2.4s ease-in-out infinite;
   transform-origin: left center;
+  animation: savings-pop 700ms var(--ease-pop) both;
 }
 @keyframes savings-pop {
-  0%, 100% { transform: scale(1); }
-  50%       { transform: scale(1.05); }
+  0%   { transform: scale(0.9); opacity: 0; }
+  60%  { transform: scale(1.04); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
 }
 
-/* Join button — animated gradient border */
+/* Join button — the page's one "beacon". Keeps a moving gradient, but
+   animates transform on an oversized pseudo-element rather than
+   background-position, so it runs on the compositor. */
 .join-btn-border {
-  background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899, #ef4444, #f97316, #a855f7, #6366f1);
-  background-size: 300% 300%;
-  animation: gradient-shift 4s ease infinite;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
 }
-@keyframes gradient-shift {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+.join-btn-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 300%;
+  background: linear-gradient(90deg, #6366f1, #a855f7, #ec4899, #ef4444, #f97316, #a855f7, #6366f1);
+  animation: join-sweep var(--dur-loop) linear infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+/* keep the button itself above the sweeping gradient */
+.join-btn-border > * {
+  position: relative;
+  z-index: 1;
+}
+@keyframes join-sweep {
+  from { transform: translate3d(-66.666%, 0, 0); }
+  to   { transform: translate3d(0, 0, 0); }
 }
 
 /* ── Modal transitions ──────────────────────────────────────── */

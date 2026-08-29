@@ -108,7 +108,7 @@ const goToDeal = (d) => router.push(`/project-details/${d.projectId}`);
 </script>
 
 <template>
-  <section v-if="deals.length" class="my-8">
+  <section v-if="deals.length" v-motion-gate class="my-8">
     <div class="relative rounded-3xl overflow-hidden bg-gradient-to-br from-[#131735] via-[#1a2b5f] to-[#45101a]">
 
       <!-- Glow accents -->
@@ -117,7 +117,7 @@ const goToDeal = (d) => router.push(`/project-details/${d.projectId}`);
 
       <!-- Ticker -->
       <div class="relative border-b border-white/10 overflow-hidden">
-        <div class="fomo-ticker flex items-center gap-10 whitespace-nowrap py-2.5">
+        <div class="fomo-ticker flex items-center gap-10 whitespace-nowrap py-2.5" data-loop>
           <span
             v-for="(t, i) in tickerItems"
             :key="i"

@@ -123,7 +123,7 @@ const initials = (name) =>
             :src="builder.logo"
             :alt="builder.companyName"
             class="h-20 object-contain"
-          />
+           loading="lazy" decoding="async" />
           <div
             v-else
             class="h-20 w-20 rounded-full bg-blue-600 text-white flex items-center justify-center text-2xl font-bold border-4 border-white shadow"

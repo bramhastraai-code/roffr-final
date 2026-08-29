@@ -123,7 +123,7 @@ const goToProject = (r) => {
             </span>
 
             <!-- Play button -->
-            <span class="reel-play absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-white/20 backdrop-blur-md border border-white/40 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+            <span class="reel-play absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-14 h-14 rounded-full bg-white/30 border border-white/40 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
               <i class="pi pi-play text-white text-lg ml-1"></i>
             </span>
 
@@ -167,11 +167,11 @@ const goToProject = (r) => {
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* The play button previously ran an infinite box-shadow pulse — on up to ten
+   reels at once, each on an element that also carried backdrop-blur, which is
+   the most expensive pairing available. It is now a static ring; the existing
+   group-hover scale already provides the interactive feedback. */
 .reel-play {
-  animation: reel-pulse 2s ease-in-out infinite;
-}
-@keyframes reel-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.25); }
-  50%      { box-shadow: 0 0 0 12px rgba(255, 255, 255, 0); }
+  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.14);
 }
 </style>

@@ -75,7 +75,7 @@ const handleConnect = () => {
               :src="broker.brokerImage"
               :alt="broker.name"
               class="h-full w-full rounded-full object-cover"
-            />
+             loading="lazy" decoding="async" />
             <span v-else>{{ initials(broker?.name) }}</span>
           </div>
           <div>

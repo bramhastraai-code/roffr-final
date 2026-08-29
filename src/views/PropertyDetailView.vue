@@ -401,10 +401,13 @@ const handleCompare = () => {
               <div
                 class="rounded-2xl overflow-hidden bg-gray-100 h-[260px] sm:h-[400px] xl:h-[500px]"
               >
+                <!-- Above the fold: this is the LCP image, load it eagerly -->
                 <img
                   :src="activeImage"
                   :alt="property.title"
                   class="w-full h-full object-cover"
+                  fetchpriority="high"
+                  decoding="async"
                 />
               </div>
               <div
@@ -422,7 +425,7 @@ const handleCompare = () => {
                       : 'border-transparent opacity-80 hover:opacity-100'
                   "
                 >
-                  <img :src="img" class="w-full h-full object-cover" />
+                  <img :src="img" class="w-full h-full object-cover"  loading="lazy" decoding="async" />
                 </button>
               </div>
             </div>
@@ -551,7 +554,7 @@ const handleCompare = () => {
             <div class="rounded-2xl overflow-hidden">
               <Swiper :space-between="10" :slides-per-view="1">
                 <SwiperSlide v-for="(img, idx) in heroImages" :key="idx">
-                  <img :src="img" class="w-full h-[300px] sm:h-[500px] object-cover" />
+                  <img :src="img" class="w-full h-[300px] sm:h-[500px] object-cover"  loading="lazy" decoding="async" />
                 </SwiperSlide>
               </Swiper>
             </div>
@@ -561,7 +564,7 @@ const handleCompare = () => {
                 :key="idx"
                 :src="img"
                 class="rounded-lg h-28 w-full object-cover border"
-              />
+               loading="lazy" decoding="async" />
             </div>
           </div>
         </div>

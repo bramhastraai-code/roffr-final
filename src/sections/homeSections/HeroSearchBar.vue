@@ -166,7 +166,7 @@ const runSearch = () => {
             v-for="c in citySuggestions"
             :key="c"
             @click="pickCity(c)"
-            class="hsb-item w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-[#EB3131] flex items-center gap-2.5 transition-all duration-150 capitalize"
+            class="hsb-item w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-red-50 hover:text-[#EB3131] flex items-center gap-2.5 capitalize"
           >
             <i class="pi pi-map-marker text-gray-300 text-xs"></i>
             {{ c }}
@@ -180,7 +180,7 @@ const runSearch = () => {
       <div class="relative shrink-0">
         <button
           @click="toggle('bhk', $event)"
-          class="hsb-pill w-full md:w-auto flex items-center justify-between md:justify-start gap-2 px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200"
+          class="hsb-pill w-full md:w-auto flex items-center justify-between md:justify-start gap-2 px-4 py-2.5 text-sm font-medium rounded-full transition-colors duration-200"
           :class="selectedBhk ? 'text-[#EB3131]' : 'text-gray-700 hover:text-gray-900'"
         >
           <span class="flex items-center gap-2">
@@ -199,7 +199,7 @@ const runSearch = () => {
             v-for="b in BHK_OPTIONS"
             :key="b"
             @click="selectedBhk = selectedBhk === b ? '' : b; bhkOpen = false"
-            class="hsb-item w-full text-left px-4 py-2.5 text-sm flex items-center justify-between gap-3 transition-all duration-150"
+            class="hsb-item w-full text-left px-4 py-2.5 text-sm flex items-center justify-between gap-3"
             :class="selectedBhk === b ? 'text-[#EB3131] font-semibold bg-red-50' : 'text-gray-700 hover:bg-red-50 hover:text-[#EB3131]'"
           >
             {{ b.replace("BHK", " BHK") }}
@@ -214,7 +214,7 @@ const runSearch = () => {
       <div class="relative shrink-0">
         <button
           @click="toggle('budget', $event)"
-          class="hsb-pill w-full md:w-auto flex items-center justify-between md:justify-start gap-2 px-4 py-2.5 text-sm font-medium rounded-full transition-all duration-200"
+          class="hsb-pill w-full md:w-auto flex items-center justify-between md:justify-start gap-2 px-4 py-2.5 text-sm font-medium rounded-full transition-colors duration-200"
           :class="selectedPriceKey !== 'any' ? 'text-[#EB3131]' : 'text-gray-700 hover:text-gray-900'"
         >
           <span class="flex items-center gap-2">
@@ -233,7 +233,7 @@ const runSearch = () => {
             v-for="r in PRICE_RANGES"
             :key="r.key"
             @click="selectedPriceKey = r.key; budgetOpen = false"
-            class="hsb-item w-full text-left px-4 py-2.5 text-sm flex items-center justify-between gap-3 transition-all duration-150"
+            class="hsb-item w-full text-left px-4 py-2.5 text-sm flex items-center justify-between gap-3"
             :class="selectedPriceKey === r.key ? 'text-[#EB3131] font-semibold bg-red-50' : 'text-gray-700 hover:bg-red-50 hover:text-[#EB3131]'"
           >
             {{ r.label }}
@@ -245,7 +245,7 @@ const runSearch = () => {
       <!-- Search button -->
       <button
         @click="runSearch"
-        class="hsb-search shrink-0 flex items-center justify-center gap-2 bg-[#EB3131] text-white text-[15px] font-bold px-8 py-3 rounded-full transition-all duration-200 active:scale-[0.97] shadow-md shadow-red-200 md:ml-1"
+        class="hsb-search shrink-0 flex items-center justify-center gap-2 bg-[#EB3131] text-white text-[15px] font-bold px-8 py-3 rounded-full transition-[transform,box-shadow,background-color] duration-200 active:scale-[0.97] shadow-md shadow-red-200 md:ml-1"
       >
         <i class="pi pi-search text-sm"></i>
         Search
@@ -297,9 +297,16 @@ const runSearch = () => {
   transition: transform 0.2s ease;
 }
 
-/* Dropdown items nudge right on hover */
+/* Dropdown items nudge right on hover.
+   Was `padding-left: 20px` with transition-all — animating padding reflows the
+   whole dropdown for the duration of every hover. transform is free. */
+.hsb-item {
+  transition: transform var(--dur-2) var(--ease-standard),
+              background-color var(--dur-2) var(--ease-standard),
+              color var(--dur-2) var(--ease-standard);
+}
 .hsb-item:hover {
-  padding-left: 20px;
+  transform: translateX(6px);
 }
 
 /* Search button glow + lift */

@@ -159,14 +159,14 @@ const goToCity = (city) => {
               {{ city.name }}
             </h3>
             <p
-              class="text-white/70 text-xs mt-1 flex items-center gap-1.5 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300"
+              class="text-white/70 text-xs mt-1 flex items-center gap-1.5 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-[transform,box-shadow,opacity] duration-300"
             >
               View projects
               <i class="pi pi-arrow-right text-[9px]"></i>
             </p>
           </div>
           <span
-            class="w-10 h-10 rounded-full bg-white text-gray-900 flex items-center justify-center shrink-0 shadow-lg opacity-0 scale-75 -rotate-45 group-hover:opacity-100 group-hover:scale-100 group-hover:rotate-0 transition-all duration-300"
+            class="w-10 h-10 rounded-full bg-white text-gray-900 flex items-center justify-center shrink-0 shadow-lg opacity-0 scale-75 -rotate-45 group-hover:opacity-100 group-hover:scale-100 group-hover:rotate-0 transition-[transform,box-shadow,opacity] duration-300"
           >
             <i class="pi pi-arrow-right text-xs"></i>
           </span>

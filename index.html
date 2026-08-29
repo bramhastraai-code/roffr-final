@@ -102,7 +102,9 @@
       }
     </script>
 
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <!-- defer: this was a synchronous script in <head>, blocking first paint on
+         every page including those with no checkout -->
+    <script src="https://checkout.razorpay.com/v1/checkout.js" defer></script>
   </head>
   <body>
     <div id="app"></div>

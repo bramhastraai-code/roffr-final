@@ -129,44 +129,33 @@ const dashOffset = computed(() =>
   gb.value ? CIRC * (1 - gb.value.pct / 100) : CIRC
 )
 
-// ── Avatar swap animation ─────────────────────────────────────────
-const step = ref(0)
-let swapInterval = null
-
+// The per-card setInterval(2000) that reshuffled three identical dummy
+// avatars is gone: it meant ~30 timers waking Vue every 2s and 90 elements
+// transitioning `left` (a layout property) forever. The avatars are now a
+// static overlapped stack — same social proof, zero steady-state cost.
 onMounted(async () => {
-  swapInterval = setInterval(() => {
-    step.value = (step.value + 1) % 3
-  }, 2000)
+  if (!props.showGroupBuy || !props.project?._id) return
 
-  if (props.showGroupBuy && props.project?._id) {
-    const cached = groupBuyStore.activeCampaigns.find(
+  const findCached = () =>
+    groupBuyStore.activeCampaigns.find(
       c => (c.projectId?._id ?? c.projectId) === props.project._id
     )
-    if (cached) {
-      // Found in the already-fetched global list — no network call needed
-      campaign.value = cached
-    } else if (!groupBuyStore.campaignsFetched) {
-      // Global list not loaded yet — fall back to individual fetch
-      campaign.value = await groupBuyStore.fetchCampaignForProject(props.project._id)
-    }
-    // If campaignsFetched is true and project isn't in the list, it has no
-    // active campaign — skip the call entirely
+
+  const cached = findCached()
+  if (cached) {
+    campaign.value = cached
+    return
   }
+
+  // Wait for the shared global fetch rather than testing a boolean that is
+  // still false while that request is in flight (which made every card fire
+  // its own lookup). One request for the whole page instead of ~20.
+  if (!groupBuyStore.campaignsFetched) {
+    await groupBuyStore.fetchActiveCampaigns()
+    campaign.value = findCached() || null
+  }
+  // Fetched and not in the list => this project has no active campaign.
 })
-onBeforeUnmount(() => clearInterval(swapInterval))
-
-const GAP = 34 // px between avatar left edges (44px avatar - 10px overlap)
-
-const avatarLeft = (idx, total) => {
-  const count = Math.min(total, 3)
-  return ((idx + step.value) % count) * GAP
-}
-
-const avatarZ = (idx, total) => {
-  const count = Math.min(total, 3)
-  const pos = (idx + step.value) % count
-  return count - pos
-}
 
 const ordinal = (n) => {
   const sfx = ['th', 'st', 'nd', 'rd']
@@ -203,7 +192,7 @@ const handleJoined = async () => {
 
 <template>
   <article
-    class="rounded-3xl border border-gray-200 bg-white shadow-sm hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer flex flex-col overflow-hidden"
+    class="group rounded-3xl border border-gray-200 bg-white shadow-sm hover:shadow-xl transition-[transform,box-shadow] duration-200 hover:-translate-y-1 cursor-pointer flex flex-col overflow-hidden"
     @click="go"
   >
     <!-- ── Image ─────────────────────────────────────────── -->
@@ -215,7 +204,7 @@ const handleJoined = async () => {
       <!-- subtle gradient at bottom -->
       <div class="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent"></div>
 
-      <!-- Offer badge (animated) or Great Value fallback -->
+      <!-- Offer badge or Great Value fallback -->
       <span
         v-if="offer"
         class="offer-badge absolute top-4 left-4 text-white text-[11px] font-bold px-3 py-1.5 rounded-md tracking-wide shadow-lg max-w-[75%] truncate"
@@ -332,25 +321,20 @@ const handleJoined = async () => {
         </span>
       </div>
 
-      <!-- Member avatars row -->
+      <!-- Member avatars row (static overlapped stack) -->
       <div v-if="showGroupBuy && gb" class="flex items-center gap-3 mt-4">
-        <!-- Avatars with swap animation -->
-        <div
-          class="relative shrink-0"
-          :style="{ width: `${44 + (Math.min(gb.joined, 3) - 1) * GAP}px`, height: '44px' }"
-        >
-          <div
+        <div class="flex shrink-0">
+          <img
             v-for="(_, idx) in Math.min(gb.joined, 3)"
             :key="idx"
-            class="w-11 h-11 rounded-full border-2 border-white overflow-hidden shadow-md absolute top-0 transition-all duration-[650ms] ease-in-out"
-            :style="{ left: `${avatarLeft(idx, Math.min(gb.joined, 3))}px`, zIndex: avatarZ(idx, Math.min(gb.joined, 3)) }"
-          >
-            <img
-              :src="`/dummy/dummy-case${(idx % 3) + 1}.webp`"
-              class="w-full h-full object-cover blur-[1.5px]"
-              alt="member"
-            />
-          </div>
+            :src="`/dummy/dummy-case${(idx % 3) + 1}.webp`"
+            class="w-11 h-11 rounded-full border-2 border-white object-cover shadow-md blur-[1.5px] -ml-2.5 first:ml-0"
+            loading="lazy"
+            decoding="async"
+            width="44"
+            height="44"
+            alt="member"
+          />
         </div>
 
         <span class="text-gray-400 text-base font-light">+</span>
@@ -432,34 +416,20 @@ const handleJoined = async () => {
 </template>
 
 <style scoped>
-/* Animated offer badge: moving gradient + shimmer sweep + soft pulse */
+/* Offer badge.
+   Was three INFINITE animations per card (background-position + scale +
+   a `left` sweep) — on ~30 cards that meant ~90 loops, ~60 of them forcing
+   layout or paint every frame. Now a static gradient plus a single pop that
+   fires once when the card enters view. Same scarcity cue, no steady state. */
 .offer-badge {
   position: absolute;
-  overflow: hidden;
-  background: linear-gradient(110deg, #eb3131, #e8820c, #dd2476, #eb3131);
-  background-size: 250% 100%;
-  animation: offer-gradient 3.5s linear infinite, offer-pulse 2s ease-in-out infinite;
+  background: linear-gradient(110deg, #eb3131, #e8820c, #dd2476);
+  animation: offer-pop 600ms var(--ease-pop) both;
 }
-.offer-badge::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -60%;
-  width: 40%;
-  height: 100%;
-  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.55), transparent);
-  animation: offer-shimmer 2.4s ease-in-out infinite;
-}
-@keyframes offer-gradient {
-  0%   { background-position: 0% 50%; }
-  100% { background-position: 250% 50%; }
-}
-@keyframes offer-pulse {
-  0%, 100% { transform: scale(1); }
-  50%      { transform: scale(1.05); }
-}
-@keyframes offer-shimmer {
-  0%       { left: -60%; }
-  55%, 100% { left: 120%; }
+
+@keyframes offer-pop {
+  0%   { transform: scale(0.86); opacity: 0; }
+  60%  { transform: scale(1.06); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
 }
 </style>

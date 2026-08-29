@@ -136,7 +136,7 @@ const filteredProjects = computed(() => {
         <div class="relative">
           <button
             @click="toggleDropdown('location', $event)"
-            class="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border transition-all duration-200"
+            class="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border transition-colors duration-200"
             :class="selectedLocation
               ? 'bg-[#EB3131] text-white border-[#EB3131] shadow-sm'
               : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:text-gray-800'"
@@ -169,7 +169,7 @@ const filteredProjects = computed(() => {
         <div class="relative">
           <button
             @click="toggleDropdown('type', $event)"
-            class="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border transition-all duration-200"
+            class="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border transition-colors duration-200"
             :class="selectedType
               ? 'bg-[#EB3131] text-white border-[#EB3131] shadow-sm'
               : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:text-gray-800'"
@@ -201,7 +201,7 @@ const filteredProjects = computed(() => {
         <div class="relative">
           <button
             @click="toggleDropdown('budget', $event)"
-            class="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border transition-all duration-200"
+            class="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border transition-colors duration-200"
             :class="selectedBudget
               ? 'bg-[#EB3131] text-white border-[#EB3131] shadow-sm'
               : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:text-gray-800'"
@@ -233,7 +233,7 @@ const filteredProjects = computed(() => {
         <div class="relative">
           <button
             @click="toggleDropdown('possession', $event)"
-            class="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border transition-all duration-200"
+            class="flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border transition-colors duration-200"
             :class="selectedPossession
               ? 'bg-[#EB3131] text-white border-[#EB3131] shadow-sm'
               : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400 hover:text-gray-800'"

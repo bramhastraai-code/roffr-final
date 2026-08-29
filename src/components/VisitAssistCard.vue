@@ -61,12 +61,12 @@ const askRios = () => {
           Visit property from<br />your home.
         </h3>
         <span class="flex items-center gap-1.5 text-white text-xs font-medium shrink-0 mt-1">
-          <span class="w-2.5 h-2.5 rounded-full bg-red-500 va-live-dot"></span>
+          <span class="w-2.5 h-2.5 rounded-full bg-red-500 va-live-dot" data-loop></span>
           Live
         </span>
       </div>
 
-      <div class="va-glow rounded-full mt-5">
+      <div class="va-glow rounded-full mt-5" data-loop>
         <button
           @click="takeLiveTour"
           class="w-full flex items-center justify-center gap-2.5 bg-[#EFE7DD] hover:bg-white text-gray-900 text-[13px] font-bold tracking-[0.15em] uppercase py-3.5 rounded-full transition-all duration-200 active:scale-[0.98]"
@@ -161,7 +161,6 @@ const askRios = () => {
         @click="askRios"
         class="w-full h-full text-left bg-[#17131f] rounded-[22px] p-5 relative overflow-hidden group"
       >
-        <span class="va-shine"></span>
         <div class="flex items-center gap-2.5">
           <span class="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-rose-500 flex items-center justify-center shrink-0">
             <svg class="w-4.5 h-4.5 text-white" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c0 0 1.5 5.5 4 7.5S23 12 23 12s-4.5 1.5-7 3.5S12 22 12 22s-1.5-5.5-4-7.5S1 12 1 12s4.5-1.5 7-3.5S12 2 12 2z"/></svg>
@@ -192,49 +191,50 @@ const askRios = () => {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Breathing warm glow around the live-tour button (like the reference) */
+/* Warm glow around the live-tour button.
+   Was an infinite box-shadow animation growing an 18px blur to 70px — the
+   most expensive paint on this page. Same breathing look, now a pseudo-element
+   halo animating opacity + scale on the compositor. */
 .va-glow {
-  animation: va-glow-breathe 2.6s ease-in-out infinite;
+  position: relative;
+}
+.va-glow::before {
+  content: '';
+  position: absolute;
+  inset: -14px;
+  border-radius: 9999px;
+  background: radial-gradient(closest-side, rgba(235, 100, 49, 0.55), rgba(235, 49, 49, 0.18) 70%, transparent);
+  animation: va-glow-breathe var(--dur-loop) var(--ease-loop) infinite;
+  pointer-events: none;
+  z-index: -1;
 }
 @keyframes va-glow-breathe {
-  0%, 100% { box-shadow: 0 0 18px 2px rgba(235, 100, 49, 0.45), 0 0 46px 8px rgba(235, 49, 49, 0.18); }
-  50%      { box-shadow: 0 0 30px 6px rgba(235, 100, 49, 0.75), 0 0 70px 16px rgba(235, 49, 49, 0.32); }
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50%      { opacity: 1;    transform: scale(1.06); }
 }
 
-/* Pulsing live dot */
+/* Live dot — "ping" ring instead of an animated box-shadow spread */
 .va-live-dot {
-  animation: va-live 1.4s ease-in-out infinite;
+  position: relative;
+}
+.va-live-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: rgba(239, 68, 68, 0.55);
+  animation: va-live 2.4s var(--ease-loop) infinite;
 }
 @keyframes va-live {
-  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.6); }
-  50%      { opacity: 0.6; box-shadow: 0 0 0 5px rgba(239, 68, 68, 0); }
+  0%   { transform: scale(1);   opacity: 0.6; }
+  70%  { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(2.2); opacity: 0; }
 }
 
-/* Animated AI gradient border */
+/* Static AI gradient border. The animated background-position version
+   repainted the whole border every frame for a hue shift nobody tracks. */
 .va-ai-border {
-  background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899, #ef4444, #f97316, #a855f7, #6366f1);
-  background-size: 300% 300%;
-  animation: va-enter 0.6s cubic-bezier(0.22, 1, 0.36, 1) both, va-gradient 4s ease infinite;
-}
-@keyframes va-gradient {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-/* Shine sweep across the AI card */
-.va-shine {
-  position: absolute;
-  top: 0;
-  left: -80%;
-  width: 50%;
-  height: 100%;
-  background: linear-gradient(105deg, transparent, rgba(255, 255, 255, 0.08), transparent);
-  animation: va-shine-sweep 3.2s ease-in-out infinite;
-  pointer-events: none;
-}
-@keyframes va-shine-sweep {
-  0%        { left: -80%; }
-  55%, 100% { left: 130%; }
+  background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899, #ef4444, #f97316);
+  animation: va-enter 0.6s var(--ease-out) both;
 }
 </style>

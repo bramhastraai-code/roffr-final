@@ -2,6 +2,7 @@
 import { onMounted, onBeforeUnmount, ref, computed } from "vue"
 import gsap from "gsap"
 import AnimatedTitle from "@/components/AnimatedTitle.vue"
+import { observe, unobserve } from "@/composables/useIntersect"
 
 // Swiper
 import { Swiper, SwiperSlide } from "swiper/vue"
@@ -23,45 +24,51 @@ const steps = ref([
 const isMobile = ref(false)
 
 let ctx
+let mq = null
+let watched = null
+// Keep a reference to the actual handler. The previous version stored the
+// MediaQueryList on window.__stepsMq__ and then called removeEventListener
+// with a brand-new arrow function, so the listener was never removed.
+const updateIsMobile = (e) => (isMobile.value = !e.matches)
+
 onMounted(() => {
-  const mq = window.matchMedia("(min-width: 768px)")
-  const updateIsMobile = (e) => (isMobile.value = !e.matches)
+  mq = window.matchMedia("(min-width: 768px)")
   updateIsMobile(mq)
   mq.addEventListener("change", updateIsMobile)
 
-  // GSAP only for desktop/tablet
+  // Plays once when the steps scroll into view. This used to be a
+  // `repeat: -1` timeline that scaled six items forever — including while the
+  // section was several screens away — which is noise, not explanation: a
+  // "how it works" diagram teaches its order once.
   ctx = gsap.context(() => {
     const items = gsap.utils.toArray(".step-item")
     if (!items.length) return
 
-    gsap.set(items, { scale: 0.85, opacity: 1 })
+    gsap.set(items, { scale: 0.85, opacity: 0 })
+    watched = items[0]
 
-    const tl = gsap.timeline({ repeat: -1, repeatDelay: 0.5 })
-
-    items.forEach((item, i) => {
-      tl.to(
-        item,
-        { scale: 1, opacity: 1, duration: 0.5, ease: "power2.out" },
-        i === 0 ? 0 : ">-=0.1"
-      ).to(item, {
-        scale: 0.85,
+    // Uses the app's shared IntersectionObserver rather than ScrollTrigger,
+    // which recomputes positions on the main thread during scroll.
+    observe(watched, (entry) => {
+      if (!entry.isIntersecting) return
+      unobserve(watched)
+      gsap.to(items, {
+        scale: 1,
         opacity: 1,
         duration: 0.5,
-        ease: "power2.in",
-        delay: 1,
+        ease: "power2.out",
+        stagger: 0.12,
       })
     })
   })
-
-  // store media query listener for cleanup
-  window.__stepsMq__ = mq
 })
 
 onBeforeUnmount(() => {
+  if (watched) unobserve(watched)
+  watched = null
   ctx && ctx.revert()
-  if (window.__stepsMq__) {
-    window.__stepsMq__.removeEventListener("change", () => {})
-  }
+  mq?.removeEventListener("change", updateIsMobile)
+  mq = null
 })
 </script>
 

@@ -1,0 +1,134 @@
+/* ============================================================================
+   MOTION SYSTEM — the single source of truth for animation on this site.
+
+   Rules we design against:
+   M1  Animate only transform / opacity / clip-path. Never background-position,
+       box-shadow, left/top, width/height, max-height, padding.
+   M2  Max 3 concurrent INFINITE animations per viewport.
+   M3  One "beacon" per screen may loop forever. Everything else earns motion
+       on entrance, hover, focus, or state change.
+   M4  Repeated components (cards, slides, list items) get ZERO infinite motion.
+   M5  Never animate an element that has blur() / backdrop-filter.
+   M6  Nothing infinite runs faster than 2.4s or travels more than 12px.
+   M7  All loops are viewport- and tab-gated (see [data-loop] below).
+   M8  will-change is transient — removed once the animation settles.
+   M9  No transition-all. Always name the properties.
+   M10 Everything honours prefers-reduced-motion (block at the bottom).
+   ========================================================================== */
+
+:root {
+  /* Duration scale */
+  --dur-1: 120ms;      /* micro: tap feedback, colour swap   */
+  --dur-2: 200ms;      /* default UI: hover, tint, icon nudge */
+  --dur-3: 320ms;      /* enter/exit: dropdown, modal         */
+  --dur-4: 520ms;      /* section reveal                      */
+  --dur-5: 800ms;      /* hero entrance — the maximum         */
+  --dur-loop: 3200ms;  /* ambient loop; never below 2400ms    */
+
+  /* Easing */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);       /* entrances       */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);      /* UI state change */
+  --ease-loop: cubic-bezier(0.45, 0, 0.55, 1);      /* infinite yoyo   */
+  --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);    /* small pops      */
+
+  /* Travel distance */
+  --move-sm: 8px;
+  --move-md: 16px;
+  --move-lg: 24px;
+}
+
+/* Fixed navbar clearance for in-page anchors */
+[id] {
+  scroll-margin-top: 96px;
+}
+
+/* ----------------------------------------------------------------------------
+   REVEAL ON VIEW
+   The hidden state is gated behind html.js (set in main.js before mount), so
+   if JS ever fails every section is simply visible.
+
+   .is-done sets transform:none — this matters: translateY(0) creates a
+   stacking context and a promoted layer, transform:none does not. Leaving the
+   transform in place is what forced the old `relative z-20` hack in HomeView.
+   -------------------------------------------------------------------------- */
+html.js [data-reveal] {
+  opacity: 0;
+  transform: translate3d(0, var(--reveal-y, var(--move-md)), 0);
+  will-change: transform, opacity;
+  transition:
+    opacity var(--dur-4) var(--ease-out) var(--reveal-delay, 0ms),
+    transform var(--dur-4) var(--ease-out) var(--reveal-delay, 0ms);
+}
+
+html.js [data-reveal].is-revealed {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+html.js [data-reveal].is-done {
+  opacity: 1;
+  transform: none;
+  will-change: auto;
+  transition: none;
+}
+
+/* ----------------------------------------------------------------------------
+   LOOP GATING
+   Infinite animations opt in with data-loop and pause when their gated
+   ancestor leaves the viewport, or when the tab is backgrounded.
+
+   animation-play-state:paused (not animation:none) freezes in place and
+   resumes seamlessly — `none` would snap the loop to its base frame and pop.
+
+   IMPORTANT: data-loop goes on INFINITE animations only. Putting it on a
+   one-shot entrance would freeze that element at opacity:0 forever.
+   -------------------------------------------------------------------------- */
+/* animation-play-state does not inherit, so pseudo-elements are listed
+   explicitly — several loops animate on ::before / ::after. */
+[data-motion-gate]:not([data-inview]) [data-loop],
+[data-motion-gate]:not([data-inview]) [data-loop]::before,
+[data-motion-gate]:not([data-inview]) [data-loop]::after,
+[data-motion-gate]:not([data-inview])[data-loop],
+[data-motion-gate]:not([data-inview])[data-loop]::before,
+[data-motion-gate]:not([data-inview])[data-loop]::after {
+  animation-play-state: paused !important;
+}
+
+html[data-page-hidden] [data-loop],
+html[data-page-hidden] [data-loop]::before,
+html[data-page-hidden] [data-loop]::after {
+  animation-play-state: paused !important;
+}
+
+/* ----------------------------------------------------------------------------
+   REDUCED MOTION — one global block, whole app.
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* 0.01ms not 0 — transitionend/animationend must still fire, the reveal
+       primitive depends on them to apply .is-done */
+    animation-duration: 0.01ms !important;
+    /* collapses every infinite loop to its resting frame */
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* fill-mode:both entrances must land on their END state, not their start,
+     or content stays invisible */
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  /* marquees have no resting frame — stop them dead rather than snapping */
+  [data-loop],
+  [data-loop]::before,
+  [data-loop]::after {
+    animation: none !important;
+  }
+}

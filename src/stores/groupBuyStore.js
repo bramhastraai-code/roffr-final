@@ -12,18 +12,30 @@ export const useGroupBuyStore = defineStore("groupBuy", () => {
   // list is already loaded and the project isn't in it.
   const campaignsFetched = ref(false);
 
+  // Shared in-flight promise. Cards used to test the `campaignsFetched`
+  // boolean, which is still false while this request is in flight — so every
+  // card on screen raced it and fired its own by-project lookup (~20 extra
+  // requests on the homepage). Awaiting this promise collapses them to one.
+  let activePromise = null;
+
   const fetchActiveCampaigns = async () => {
+    if (activePromise) return activePromise;
     loading.value = true;
-    try {
-      const res = await makeRequest(endpoints.groupBuyActive, "GET");
-      activeCampaigns.value = res?.data || [];
-      campaignsFetched.value = true;
-    } catch (e) {
-      console.error("fetchActiveCampaigns failed", e);
-      activeCampaigns.value = [];
-    } finally {
-      loading.value = false;
-    }
+    activePromise = (async () => {
+      try {
+        const res = await makeRequest(endpoints.groupBuyActive, "GET");
+        activeCampaigns.value = res?.data || [];
+        campaignsFetched.value = true;
+      } catch (e) {
+        console.error("fetchActiveCampaigns failed", e);
+        activeCampaigns.value = [];
+        activePromise = null; // allow a retry after a failure
+      } finally {
+        loading.value = false;
+      }
+      return activeCampaigns.value;
+    })();
+    return activePromise;
   };
 
   const fetchCampaignForProject = async (projectId) => {

@@ -1,10 +1,14 @@
 <script setup>
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch, defineAsyncComponent } from "vue";
 import { useProjectStore } from "@/stores/projectStore";
 import { useOrderStore } from "@/stores/orderStore";
 import { useGroupBuyStore } from "@/stores/groupBuyStore";
 import { storeToRefs } from "pinia";
 import GroupBuyJoinModal from "@/components/GroupBuyJoinModal.vue";
+
+// ApexCharts (~568 KB) is used by this one chart only. Loaded on demand here
+// instead of app-wide in main.js, so it stays out of the eager bundle.
+const apexchart = defineAsyncComponent(() => import("vue3-apexcharts"));
 
 const projectStore = useProjectStore();
 const { isModalOpen } = storeToRefs(projectStore);
@@ -324,7 +328,7 @@ const handleSubmitAndPay = async () => {
             :src="member.userImage"
             alt=""
             class="w-full h-full object-cover"
-          />
+           loading="lazy" decoding="async" />
         </div>
         <div class="flex-1">
           <p class="text-sm font-medium text-gray-800">

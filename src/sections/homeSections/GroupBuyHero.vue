@@ -203,7 +203,7 @@ const stats = [
 
           <!-- CSS visual: glowing orb + floating chat chips -->
           <div class="relative flex-1 min-h-[220px] flex items-center justify-center overflow-hidden">
-            <div class="hero-rios-orb"></div>
+            <div class="hero-rios-orb" data-loop></div>
             <div class="hero-rios-chip" style="top: 18%; left: 12%; animation-delay: 0s;">
               <i class="pi pi-home text-purple-300 text-[10px] mr-1.5"></i>2 BHK under ₹1 Cr?
             </div>
@@ -236,7 +236,7 @@ const stats = [
           class="flex flex-col items-center gap-2.5 min-w-[90px] group cursor-pointer"
         >
           <div
-            class="w-[68px] h-[68px] rounded-full flex items-center justify-center shrink-0 shadow-sm ring-2 ring-transparent group-hover:ring-blue-200 transition-all duration-200"
+            class="w-[68px] h-[68px] rounded-full flex items-center justify-center shrink-0 shadow-sm ring-2 ring-transparent group-hover:ring-blue-200 transition-colors duration-200"
             :class="partner.bg"
           >
             <span class="text-[11px] font-bold text-center leading-tight px-1" :class="partner.textColor">
@@ -271,39 +271,43 @@ const stats = [
   background: #eb3131;
 }
 
-/* RIOS slide: glowing orb behind the spark */
+/* RIOS slide: glowing orb behind the spark.
+   This is the homepage "beacon" — the one element allowed to loop forever.
+   Scoped to the ACTIVE slide so Swiper's loop clones don't animate a second
+   copy off-screen, and gated so it pauses when scrolled away or tab-hidden. */
 .hero-rios-orb {
   position: absolute;
   width: 240px;
   height: 240px;
   border-radius: 9999px;
   background: radial-gradient(circle, rgba(168, 85, 247, 0.45), rgba(236, 72, 153, 0.18) 55%, transparent 70%);
-  animation: hero-orb-breathe 4s ease-in-out infinite;
+}
+.swiper-slide-active .hero-rios-orb {
+  animation: hero-orb-breathe var(--dur-loop) var(--ease-loop) infinite;
 }
 @keyframes hero-orb-breathe {
-  0%, 100% { transform: scale(1); opacity: 0.8; }
-  50%      { transform: scale(1.15); opacity: 1; }
+  0%, 100% { transform: scale(1); opacity: 0.82; }
+  50%      { transform: scale(1.06); opacity: 1; }
 }
 
-/* Floating question chips */
+/* Question chips.
+   The float animation was removed: it animated transform on elements carrying
+   backdrop-filter: blur(6px), which forces the backdrop to be re-sampled and
+   re-blurred every frame — and Swiper's loop cloned all three, so six ran at
+   once. The blur is replaced with a flat translucent fill (indistinguishable
+   over this dark gradient) and the chips now sit still. */
 .hero-rios-chip {
   position: absolute;
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.10);
   border: 1px solid rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(6px);
   color: rgba(255, 255, 255, 0.85);
   font-size: 11px;
   font-weight: 600;
   padding: 6px 12px;
   border-radius: 9999px;
   white-space: nowrap;
-  animation: hero-chip-float 4.5s ease-in-out infinite;
   z-index: 5;
-}
-@keyframes hero-chip-float {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-9px); }
 }
 </style>

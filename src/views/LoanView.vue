@@ -1,5 +1,5 @@
 <script setup>
-import GsapFade from '@/components/GsapFade.vue'
+import Reveal from '@/components/Reveal.vue'
 
 import HeroSection from '@/sections/loanSection2/HeroSection.vue';
 import HowSection from '@/sections/loanSection2/HowSection.vue';
@@ -9,20 +9,20 @@ import ContactSection from '@/sections/loanSection2/ContactSection.vue';
 
 <template>
   <main>
-    <GsapFade direction="bottom" :duration="0.7" :triggerOffset="120">
+    <Reveal>
       <HeroSection />
-    </GsapFade>
+    </Reveal>
 
-    <GsapFade direction="bottom" :duration="0.7" :triggerOffset="120">
+    <Reveal>
       <HowSection />
-    </GsapFade>
+    </Reveal>
 
-    <GsapFade direction="bottom" :duration="0.7" :triggerOffset="120">
+    <Reveal>
       <PersonalisedSection />
-    </GsapFade>
+    </Reveal>
 
-    <GsapFade direction="bottom" :duration="0.7" :triggerOffset="120">
+    <Reveal>
       <ContactSection />
-    </GsapFade>
+    </Reveal>
   </main>
 </template>

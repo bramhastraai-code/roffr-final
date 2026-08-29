@@ -1,13 +1,19 @@
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import { useRouter } from "vue-router";
 import { Swiper, SwiperSlide } from "swiper/vue";
 import "swiper/css";
-import { blogs } from "@/data/blogsData";
 
 const router = useRouter();
 
-const blogList = blogs.slice(0, 10);
+// The blog dataset is ~400 KB and this section shows 10 items. Importing it
+// statically put the whole file in the homepage's eager bundle; loading it on
+// mount keeps it off the critical path.
+const blogList = ref([]);
+onMounted(async () => {
+  const { blogs } = await import("@/data/blogsData");
+  blogList.value = blogs.slice(0, 10);
+});
 
 const swiperInstance = ref(null);
 const isBeginning = ref(true);
@@ -46,7 +52,7 @@ const goToBlog = (slug) => {
         <button
           @click="slidePrev"
           :disabled="isBeginning"
-          class="w-9 h-9 rounded-full border flex items-center justify-center transition-all duration-200"
+          class="w-9 h-9 rounded-full border flex items-center justify-center transition-colors duration-200"
           :class="isBeginning
             ? 'border-gray-200 text-gray-300 cursor-not-allowed'
             : 'border-gray-300 text-gray-600 hover:border-[#EB3131] hover:text-[#EB3131] hover:bg-red-50'"
@@ -56,7 +62,7 @@ const goToBlog = (slug) => {
         <button
           @click="slideNext"
           :disabled="isEnd"
-          class="w-9 h-9 rounded-full border flex items-center justify-center transition-all duration-200"
+          class="w-9 h-9 rounded-full border flex items-center justify-center transition-colors duration-200"
           :class="isEnd
             ? 'border-gray-200 text-gray-300 cursor-not-allowed'
             : 'border-gray-300 text-gray-600 hover:border-[#EB3131] hover:text-[#EB3131] hover:bg-red-50'"
@@ -95,7 +101,7 @@ const goToBlog = (slug) => {
               :alt="blog.title"
               class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
               @error="$event.target.src='/dummy/dummy-case2.webp'"
-            />
+             loading="lazy" decoding="async" />
             <!-- Category pill over image bottom-left -->
             <span class="absolute bottom-3 left-3 bg-white/90 backdrop-blur-sm text-[10px] font-semibold text-gray-600 uppercase tracking-wider px-2.5 py-1 rounded-full">
               {{ blog.category }}

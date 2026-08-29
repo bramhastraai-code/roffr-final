@@ -142,7 +142,7 @@ const handleLogout = () => { authStore.logout(); router.push("/"); isMenuOpen.va
 
   <!-- ── Top navbar ────────────────────────────────────────────── -->
   <nav
-    class="w-full fixed top-0 z-30 transition-all duration-300"
+    class="w-full fixed top-0 z-30 transition-[background-color,box-shadow] duration-300"
     :class="isScrolled ? 'bg-black/90 shadow-lg backdrop-blur-md' : 'bg-white shadow-sm'"
   >
     <div class="max-w-7xl mx-auto px-4 xl:px-0 flex items-center gap-3 py-3">
@@ -185,7 +185,7 @@ const handleLogout = () => { authStore.logout(); router.push("/"); isMenuOpen.va
       <div class="flex items-center gap-2 ml-auto shrink-0">
         <button
           @click="isMenuOpen = !isMenuOpen"
-          class="h-9 w-9 rounded-full flex items-center justify-center transition-all duration-200"
+          class="h-9 w-9 rounded-full flex items-center justify-center transition-colors duration-200"
           :class="isMenuOpen
             ? 'bg-[#EB3131] text-white'
             : isScrolled
@@ -258,7 +258,7 @@ const handleLogout = () => { authStore.logout(); router.push("/"); isMenuOpen.va
               v-for="link in links"
               :key="link.path"
               @click="goTo(link.path)"
-              class="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-200"
+              class="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200"
               :class="isActive(link.path)
                 ? 'bg-[#EB3131] text-white shadow-sm shadow-red-200'
                 : isScrolled
@@ -276,16 +276,15 @@ const handleLogout = () => { authStore.logout(); router.push("/"); isMenuOpen.va
 </template>
 
 <style scoped>
-@keyframes gradient-shift {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
+/* Static gradient. This previously animated `background-position` forever on
+   EVERY route in the app — a 1px border repainting on every frame, even idle.
+   It now brightens on hover instead, which is where the feedback belongs. */
 .ai-gradient-border {
-  background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899, #ef4444, #f97316, #a855f7, #6366f1);
-  background-size: 300% 300%;
-  animation: gradient-shift 4s ease infinite;
+  background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899, #ef4444, #f97316);
+  transition: filter var(--dur-2) var(--ease-standard);
+}
+.ai-gradient-border:hover {
+  filter: brightness(1.12) saturate(1.1);
 }
 
 .fade-enter-active, .fade-leave-active { transition: opacity 0.25s ease; }

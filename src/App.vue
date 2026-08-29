@@ -2,36 +2,12 @@
 import { RouterView } from "vue-router";
 import LoginModal from "@/components/LoginModal.vue";
 import BenefitsModal from "@/components/BenefitsModal.vue";
-import { onMounted, onBeforeUnmount } from "vue";
-import Lenis from "lenis";
 
-let lenis = null;
-
-onMounted(() => {
-  // Initialize Lenis smooth scroll
-  lenis = new Lenis({
-    duration: 1.2,
-    easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-    orientation: "vertical",
-    gestureOrientation: "vertical",
-    smoothWheel: true,
-    wheelMultiplier: 1,
-    touchMultiplier: 2,
-  });
-
-  // Animation frame loop
-  function raf(time) {
-    lenis.raf(time);
-    requestAnimationFrame(raf);
-  }
-  requestAnimationFrame(raf);
-});
-
-onBeforeUnmount(() => {
-  if (lenis) {
-    lenis.destroy();
-  }
-});
+// Lenis smooth scroll was removed deliberately. It re-drove scrolling from a
+// rAF loop on the MAIN thread, so any main-thread hitch became visible scroll
+// stutter; native scroll runs on the compositor and stays smooth regardless.
+// Its rAF loop was also never cancelled and it was never linked to route
+// changes. Scroll is now owned solely by router.scrollBehavior.
 </script>
 
 <template>
@@ -39,26 +15,3 @@ onBeforeUnmount(() => {
   <LoginModal />
   <BenefitsModal />
 </template>
-
-<style>
-/* Lenis smooth scroll styles */
-html.lenis, html.lenis body {
-  height: auto;
-}
-
-.lenis.lenis-smooth {
-  scroll-behavior: auto !important;
-}
-
-.lenis.lenis-smooth [data-lenis-prevent] {
-  overscroll-behavior: contain;
-}
-
-.lenis.lenis-stopped {
-  overflow: hidden;
-}
-
-.lenis.lenis-scrolling iframe {
-  pointer-events: none;
-}
-</style>

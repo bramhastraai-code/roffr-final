@@ -1,38 +1,38 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-// Layouts
+// Layout and the landing page stay eager — they are needed for first paint.
 import MainLayout from '@/layout/MainLayout.vue'
-
-// Pages
 import HomeView from '@/views/HomeView.vue'
-import AboutView from '@/views/AboutView.vue'
-import ProjectDetailView from '@/views/ProjectDetailView.vue'
-import PropertyDetailView from '@/views/PropertyDetailView.vue'
-import PropertyProjectView from '@/views/PropertyProjectView.vue'
-import BlogDetails from '@/views/BlogDetails.vue'
-import BlogsView from '@/views/BlogsView.vue'
-import ResourceView from '@/views/ResourceView.vue'
-import ContactusView from '@/views/ContactusView.vue'
-import CaseStudyDetails from '@/views/CaseStudyDetails.vue'
-import LoanView from '@/views/LoanView.vue'
-import ChannelPartnerView from '@/views/ChannelPartnerView.vue'
-import ArticlesView from '@/views/ArticlesView.vue'
-import NewsView from '@/views/NewsView.vue'
-import CaseStudyView from '@/views/CaseStudyView.vue'
-import CorporateView from '@/views/CorporateView.vue'
-import GroupBuyView from '@/views/GroupBuyView.vue'
-import ProjectView2 from '@/views/ProjectView2.vue'
-import PropertiesView2 from '@/views/PropertiesView2.vue'
-import SearchView from '@/views/SearchView.vue'
-import BrokerListView from '@/views/BrokerListView.vue'
-import BrokerDetailsView from '@/views/BrokerDetailsView.vue'
-import BuilderListView from '@/views/BuilderListView.vue'
-import BuilderDetailsView from '@/views/BuilderDetailsView.vue'
-import SocialView from '@/views/SocialView.vue'
-import NewsDetails from '@/views/NewsDetails.vue'
-import PlatformsView from '@/views/PlatformsView.vue'
-import CitiesView from '@/views/CitiesView.vue'
-import CityProjectsView from '@/views/CityProjectsView.vue'
+
+// Every other route is code-split: each becomes its own chunk fetched on
+// navigation, instead of all 29 views living in one eager bundle.
+const AboutView = () => import('@/views/AboutView.vue')
+const ProjectDetailView = () => import('@/views/ProjectDetailView.vue')
+const PropertyDetailView = () => import('@/views/PropertyDetailView.vue')
+const BlogDetails = () => import('@/views/BlogDetails.vue')
+const BlogsView = () => import('@/views/BlogsView.vue')
+const ResourceView = () => import('@/views/ResourceView.vue')
+const ContactusView = () => import('@/views/ContactusView.vue')
+const CaseStudyDetails = () => import('@/views/CaseStudyDetails.vue')
+const LoanView = () => import('@/views/LoanView.vue')
+const ChannelPartnerView = () => import('@/views/ChannelPartnerView.vue')
+const ArticlesView = () => import('@/views/ArticlesView.vue')
+const NewsView = () => import('@/views/NewsView.vue')
+const CaseStudyView = () => import('@/views/CaseStudyView.vue')
+const CorporateView = () => import('@/views/CorporateView.vue')
+const GroupBuyView = () => import('@/views/GroupBuyView.vue')
+const ProjectView2 = () => import('@/views/ProjectView2.vue')
+const PropertiesView2 = () => import('@/views/PropertiesView2.vue')
+const SearchView = () => import('@/views/SearchView.vue')
+const BrokerListView = () => import('@/views/BrokerListView.vue')
+const BrokerDetailsView = () => import('@/views/BrokerDetailsView.vue')
+const BuilderListView = () => import('@/views/BuilderListView.vue')
+const BuilderDetailsView = () => import('@/views/BuilderDetailsView.vue')
+const SocialView = () => import('@/views/SocialView.vue')
+const NewsDetails = () => import('@/views/NewsDetails.vue')
+const PlatformsView = () => import('@/views/PlatformsView.vue')
+const CitiesView = () => import('@/views/CitiesView.vue')
+const CityProjectsView = () => import('@/views/CityProjectsView.vue')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -223,14 +223,24 @@ const router = createRouter({
       component: () => import('@/views/LoginView.vue')
     },
   ],
+  // Single scroll authority. Lenis and `html { scroll-behavior: smooth }` were
+  // removed — this is now the only thing that moves the page on navigation.
   scrollBehavior(to, from, savedPosition) {
-    if (savedPosition) {
-      return savedPosition;
-    } else if (to.hash) {
-      return { el: to.hash };
-    } else {
-      return { top: 0 };
-    }
+    const reduce =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // Back / forward: restore instantly, never animate a restore.
+    if (savedPosition) return savedPosition;
+
+    // In-page anchor: the one place smooth scrolling earns its keep.
+    if (to.hash) return { el: to.hash, behavior: reduce ? 'auto' : 'smooth' };
+
+    // Same route, different query (filters, tabs, pagination): don't move.
+    if (to.path === from.path) return false;
+
+    // New page: jump to top, instantly.
+    return { top: 0, left: 0 };
   }
 })
 

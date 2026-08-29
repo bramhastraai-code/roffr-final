@@ -86,15 +86,14 @@ const toggle = (id) => {
             </span>
           </button>
 
-          <!-- Answer -->
-          <transition name="faq-expand">
-            <p
-              v-if="openId === faq.id"
-              class="mt-3 text-sm text-gray-500 leading-relaxed pr-10"
-            >
+          <!-- Answer. The grid wrapper lets it animate to its natural height
+               without a max-height cap (the old 200px cap silently clipped
+               longer answers) and without transitioning a layout property. -->
+          <div class="faq-answer" :class="{ 'is-open': openId === faq.id }">
+            <p class="overflow-hidden mt-3 text-sm text-gray-500 leading-relaxed pr-10">
               {{ faq.answer }}
             </p>
-          </transition>
+          </div>
         </div>
       </div>
 
@@ -103,15 +102,17 @@ const toggle = (id) => {
 </template>
 
 <style scoped>
-.faq-expand-enter-active,
-.faq-expand-leave-active {
-  transition: max-height 0.3s ease, opacity 0.25s ease;
-  overflow: hidden;
-  max-height: 200px;
-}
-.faq-expand-enter-from,
-.faq-expand-leave-to {
-  max-height: 0;
+/* Accordion via grid-template-rows: animates to the answer's natural height,
+   so long answers are no longer clipped at 200px. */
+.faq-answer {
+  display: grid;
+  grid-template-rows: 0fr;
   opacity: 0;
+  transition: grid-template-rows var(--dur-3) var(--ease-standard),
+              opacity var(--dur-2) var(--ease-standard);
+}
+.faq-answer.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
 }
 </style>

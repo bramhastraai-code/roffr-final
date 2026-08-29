@@ -165,7 +165,7 @@ const handleConnect = () => {
               :src="builder.logo"
               :alt="builder.companyName"
               class="h-full w-full rounded-full object-cover"
-            />
+             loading="lazy" decoding="async" />
             <span v-else>{{ initials(builder?.companyName) }}</span>
           </div>
           <div>
@@ -334,7 +334,7 @@ const handleConnect = () => {
               :src="proj.propertyPictures?.[0] || proj.floorPlan?.[0]"
               :alt="proj.projectName"
               class="w-full h-full object-cover"
-            />
+             loading="lazy" decoding="async" />
             <div
               v-else
               class="w-full h-full bg-gradient-to-br from-gray-700 to-gray-900"

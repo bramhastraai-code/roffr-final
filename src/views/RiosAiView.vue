@@ -79,10 +79,7 @@ onMounted(() => {
 <template>
   <main class="rios-page relative min-h-screen overflow-hidden pt-28 md:pt-24 pb-8">
 
-    <!-- Aurora backdrop -->
-    <div class="rios-blob rios-blob-a"></div>
-    <div class="rios-blob rios-blob-b"></div>
-    <div class="rios-blob rios-blob-c"></div>
+    <!-- Aurora backdrop is painted by .rios-page's background gradients -->
     <div class="rios-grid absolute inset-0 pointer-events-none"></div>
 
     <div class="relative max-w-4xl w-full mx-auto px-4 flex flex-col min-h-[calc(100vh-140px)]">
@@ -251,42 +248,19 @@ onMounted(() => {
 </template>
 
 <style scoped>
+/* Aurora backdrop.
+   Was three 420px divs at filter: blur(90px), each animated with translate +
+   scale — scaling a 90px-blurred layer forces a full re-rasterisation every
+   frame, three times over, and the 40px drift was imperceptible through that
+   much blur. The identical look is now baked into the page background as
+   extra radial-gradient stops: zero elements, zero layers, zero frame cost. */
 .rios-page {
   background:
-    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(124, 58, 237, 0.22), transparent),
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(124, 58, 237, 0.22), transparent 70%),
+    radial-gradient(circle 420px at 8% 2%, rgba(147, 51, 234, 0.20), transparent 70%),
+    radial-gradient(circle 380px at 96% 96%, rgba(225, 29, 72, 0.15), transparent 70%),
+    radial-gradient(circle 300px at 62% 46%, rgba(79, 70, 229, 0.16), transparent 70%),
     #0a0613;
-}
-
-/* Drifting aurora blobs */
-.rios-blob {
-  position: absolute;
-  border-radius: 9999px;
-  filter: blur(90px);
-  pointer-events: none;
-  opacity: 0.5;
-}
-.rios-blob-a {
-  width: 420px; height: 420px;
-  background: rgba(147, 51, 234, 0.35);
-  top: -80px; left: -120px;
-  animation: rios-drift 16s ease-in-out infinite;
-}
-.rios-blob-b {
-  width: 380px; height: 380px;
-  background: rgba(225, 29, 72, 0.25);
-  bottom: -100px; right: -100px;
-  animation: rios-drift 19s ease-in-out infinite reverse;
-}
-.rios-blob-c {
-  width: 300px; height: 300px;
-  background: rgba(79, 70, 229, 0.28);
-  top: 40%; left: 55%;
-  animation: rios-drift 22s ease-in-out infinite;
-}
-@keyframes rios-drift {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33%      { transform: translate(40px, 30px) scale(1.08); }
-  66%      { transform: translate(-30px, 15px) scale(0.95); }
 }
 
 /* Faint grid */
@@ -341,15 +315,14 @@ onMounted(() => {
   background-clip: text;
   color: transparent;
 }
+/* Static gradient; brightens when the input is focused, which is where the
+   feedback actually means something. */
 .rios-input-border {
-  background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899, #ef4444, #f97316, #a855f7, #6366f1);
-  background-size: 300% 300%;
-  animation: rios-gradient 4s ease infinite;
+  background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899, #ef4444, #f97316);
+  transition: filter var(--dur-2) var(--ease-standard);
 }
-@keyframes rios-gradient {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+.rios-input-border:focus-within {
+  filter: brightness(1.15) saturate(1.1);
 }
 
 /* Capability cards */

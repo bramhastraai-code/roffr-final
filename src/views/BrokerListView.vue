@@ -167,7 +167,7 @@ const mapNote = computed(() =>
             :src="broker.brokerImage"
             :alt="broker.name"
             class="h-20 w-20 rounded-full object-cover border-4 border-white shadow"
-          />
+           loading="lazy" decoding="async" />
           <div
             v-else
             class="h-20 w-20 rounded-full bg-orange-500 text-white flex items-center justify-center text-2xl font-bold border-4 border-white shadow"

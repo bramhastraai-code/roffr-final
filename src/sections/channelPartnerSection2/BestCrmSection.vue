@@ -1,31 +1,13 @@
 <script setup>
-import { onMounted, onBeforeUnmount } from "vue"
-import gsap from "gsap"
-
-let tl = null
-
-onMounted(() => {
-  const box1 = document.querySelector('#box1')
-  const box2 = document.querySelector('#box2')
-
-  gsap.set([box1, box2], { y: 0, rotation: 0 })
-
-  tl = gsap.timeline({ repeat: -1, yoyo: true })
-    .to([box1, box2], {
-      y: -15,
-      rotation: 1,
-      duration: 2.5,
-      ease: "power2.inOut"
-    })
-})
-
-onBeforeUnmount(() => {
-  if (tl) tl.kill()
-})
+// The float used to be a `repeat: -1` GSAP timeline that ran forever, even
+// while this section was off-screen. It is now four lines of CSS (below),
+// viewport- and tab-gated via v-motion-gate / data-loop — and this file no
+// longer pulls GSAP in at all.
 </script>
 
 <template>
   <section
+    v-motion-gate
     class="max-w-7xl mx-auto py-12 px-4 lg:py-20 lg:px-4 2xl:px-0 relative overflow-hidden"
   >
     <div class="text-center px-2">
@@ -46,6 +28,7 @@ onBeforeUnmount(() => {
       <div class="w-full md:w-1/2 flex justify-center">
         <img
           id="box1"
+          data-loop
           src="/svg/channelPage/box1.svg"
           alt=""
           class="w-full max-w-sm sm:max-w-md"
@@ -54,6 +37,7 @@ onBeforeUnmount(() => {
       <div class="w-full md:w-1/2 flex justify-center">
         <img
           id="box2"
+          data-loop
           src="/svg/channelPage/box2.svg"
           alt=""
           class="w-full max-w-sm sm:max-w-md"
@@ -73,3 +57,19 @@ onBeforeUnmount(() => {
     </div>
   </section>
 </template>
+
+<style scoped>
+/* Gentle float — replaces the old infinite GSAP timeline. Gated by
+   v-motion-gate on the section, so it pauses when scrolled away. */
+#box1,
+#box2 {
+  animation: crm-float 5s var(--ease-loop) infinite alternate;
+}
+#box2 {
+  animation-delay: -1.2s;
+}
+@keyframes crm-float {
+  from { transform: translate3d(0, 0, 0) rotate(0deg); }
+  to   { transform: translate3d(0, -15px, 0) rotate(1deg); }
+}
+</style>

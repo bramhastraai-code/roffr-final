@@ -1,5 +1,5 @@
 <script setup>
-import FadeIn from '@/components/FadeIn.vue';
+import Reveal from '@/components/Reveal.vue';
 import GroupBuyHero from '@/sections/homeSections/GroupBuyHero.vue';
 import HeroSearchBar from '@/sections/homeSections/HeroSearchBar.vue';
 import DealOfTheDay from '@/sections/homeSections/DealOfTheDay.vue';
@@ -16,59 +16,56 @@ import FaqSection from '@/sections/homeSections/FaqSection.vue';
 
 <template>
   <main>
-    <FadeIn :duration="0.8">
-      <GroupBuyHero />
-    </FadeIn>
+    <!-- The hero is above the fold: render it immediately rather than
+         revealing it, so first paint isn't an empty screen. -->
+    <GroupBuyHero />
 
-    <!-- z-20: FadeIn's leftover transform makes each section a stacking
-         context, so the search dropdowns need this wrapper raised above
-         the sections that follow — but below the fixed navbar (z-30) -->
-    <FadeIn :duration="0.8" :delay="0.05" class="relative z-20">
+    <!-- Reveal clears its transform once settled (.is-done), so sections no
+         longer create stacking contexts. The `relative z-20` hack that the
+         old FadeIn required here is gone; the search bar keeps its own z-20
+         inside the component for the dropdowns. -->
+    <Reveal>
       <HeroSearchBar />
-    </FadeIn>
+    </Reveal>
 
-    <FadeIn :duration="0.8" :delay="0.05">
+    <Reveal>
       <DealOfTheDay />
-    </FadeIn>
+    </Reveal>
 
-    <FadeIn :duration="0.8">
+    <Reveal>
       <FindRealtorBanner />
-    </FadeIn>
+    </Reveal>
 
-    <FadeIn :duration="0.8">
+    <Reveal>
       <GroupBuyDealsSection />
-    </FadeIn>
+    </Reveal>
 
-    <FadeIn :duration="0.8">
+    <Reveal>
       <FeaturedProjectsSection />
-    </FadeIn>
+    </Reveal>
 
-    <FadeIn :duration="0.8">
+    <Reveal>
       <CitiesSection />
-    </FadeIn>
+    </Reveal>
 
-    <FadeIn :duration="0.8">
+    <Reveal>
       <HowItWorks />
-    </FadeIn>
+    </Reveal>
 
-    <FadeIn :duration="0.8">
+    <Reveal>
       <AboutSection />
-    </FadeIn>
+    </Reveal>
 
-    <FadeIn :duration="0.8">
+    <Reveal>
       <ExploreByVideo />
-    </FadeIn>
+    </Reveal>
 
-    <FadeIn :duration="0.8">
+    <Reveal>
       <BlogsInsights />
-    </FadeIn>
+    </Reveal>
 
-    <!-- <FadeIn :duration="0.8">
-      <InTheNews />
-    </FadeIn> -->
-
-    <FadeIn :duration="0.8">
+    <Reveal>
       <FaqSection />
-    </FadeIn>
+    </Reveal>
   </main>
 </template>

@@ -28,7 +28,7 @@ const blog = computed(() => blogStore.getBlogBySlug(route.params.slug));
           :alt="blog.title"
           class="h-[450px] w-full object-cover rounded-lg mt-4"
           @error="$event.target.src='/dummy/dummy-case2.webp'"
-        />
+         loading="lazy" decoding="async" />
       </div>
 
       <!-- 🧠 Title -->
