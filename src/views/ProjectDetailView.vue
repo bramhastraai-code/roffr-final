@@ -17,6 +17,7 @@ import VisitAssistCard from "@/components/VisitAssistCard.vue";
 import ProjectReels from "@/components/ProjectReels.vue";
 import SimilarProjects from "@/components/SimilarProjects.vue";
 import { rememberProject } from "@/composables/useRecentlyViewed";
+import { usePageMeta, useJsonLd, absolute, SITE_URL } from "@/composables/usePageMeta";
 import { bhkConfigsOf } from "@/utils/bhkDisplay";
 import { amenityMeta } from "@/utils/amenityDisplay";
 
@@ -60,9 +61,12 @@ const isJoinable = computed(() => {
   return (c.status || "ACTIVE") === "ACTIVE";
 });
 
+// Browsing this page is public; committing to a group buy is not.
 const openStickyJoinModal = () => {
   if (!isJoinable.value) return;
-  joinModalOpen.value = true;
+  authStore.requireAuth(() => {
+    joinModalOpen.value = true;
+  });
 };
 
 const handleJoined = async () => {
@@ -200,6 +204,111 @@ const priceLabel = computed(() => {
   return formatINR(min || max);
 });
 
+// ----- SEO -----
+usePageMeta(() => {
+  const p = project.value || {};
+  const where = [p.region, p.city].filter(Boolean).join(", ");
+  return {
+    title: p.projectName
+      ? [p.projectName, p.builderName && `by ${p.builderName}`, where && `in ${where}`]
+          .filter(Boolean)
+          .join(" ")
+      : "",
+    description: p.projectName
+      ? `${p.projectName}${where ? ` in ${where}` : ""}${
+          p.builderName ? ` by ${p.builderName}` : ""
+        } — ${priceLabel.value}${
+          p.projectStatus ? `, ${p.projectStatus}` : ""
+        }. View floor plans, amenities and current group-buy savings on Roffr.`
+      : "",
+    path: `/project-details/${route.params.id}`,
+    image: heroImages.value[0] || "",
+    type: "product",
+  };
+});
+
+useJsonLd(() => {
+  const p = project.value || {};
+  // Wait for real data — a half-empty listing fails schema validation.
+  if (!p._id || !p.projectName) return null;
+
+  const where = [p.region, p.city].filter(Boolean).join(", ");
+  const url = `${SITE_URL}/project-details/${p._id}`;
+
+  const listing = {
+    "@context": "https://schema.org",
+    "@type": "RealEstateListing",
+    name: p.projectName,
+    url,
+    ...(p.description ? { description: p.description } : {}),
+    ...(heroImages.value.length
+      ? { image: heroImages.value.slice(0, 5).map((i) => absolute(i)) }
+      : {}),
+    ...(p.builderName
+      ? { provider: { "@type": "Organization", name: p.builderName } }
+      : {}),
+    ...(p.city
+      ? {
+          address: {
+            "@type": "PostalAddress",
+            ...(p.venue ? { streetAddress: p.venue } : {}),
+            addressLocality: p.city,
+            ...(p.state ? { addressRegion: p.state } : {}),
+            ...(p.pinCode ? { postalCode: String(p.pinCode) } : {}),
+            addressCountry: "IN",
+          },
+        }
+      : {}),
+    ...(Number.isFinite(Number(p.latitude)) && Number.isFinite(Number(p.longitude))
+      ? {
+          geo: {
+            "@type": "GeoCoordinates",
+            latitude: Number(p.latitude),
+            longitude: Number(p.longitude),
+          },
+        }
+      : {}),
+    // Only claim a price when there is a real one.
+    ...(Number(p.minPrice)
+      ? {
+          offers: {
+            "@type": "Offer",
+            price: Number(p.minPrice),
+            priceCurrency: "INR",
+            availability: "https://schema.org/InStock",
+            url,
+          },
+        }
+      : {}),
+  };
+
+  const breadcrumbs = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
+      { "@type": "ListItem", position: 2, name: "Projects", item: `${SITE_URL}/project` },
+      ...(p.city
+        ? [{
+            "@type": "ListItem",
+            position: 3,
+            name: p.city,
+            item: `${SITE_URL}/cities/${encodeURIComponent(p.city)}`,
+          }]
+        : []),
+      {
+        "@type": "ListItem",
+        position: p.city ? 4 : 3,
+        name: p.projectName,
+        item: url,
+      },
+    ],
+  };
+
+  return [listing, breadcrumbs];
+});
+
+
 const carpetAreaLabel = computed(() => {
   const min = project.value?.minCarpetArea;
   const max = project.value?.maxCarpetArea;
@@ -273,16 +382,20 @@ const visitForm = ref({
 });
 
 const openBookVisit = () => {
-  visitForm.value = {
-    scheduledDate: "",
-    customerName: authStore.currentUserData?.name || authStore.user?.name || "",
-    phoneNumber:
-      authStore.currentUserData?.phoneNumber ||
-      authStore.user?.phoneNumber ||
-      "",
-  };
-  visitMsg.value = "";
-  showVisitModal.value = true;
+  // Booking a visit is a lead-capture action — sign in first, then the form
+  // opens pre-filled with the profile we now have.
+  authStore.requireAuth(() => {
+    visitForm.value = {
+      scheduledDate: "",
+      customerName: authStore.currentUserData?.name || authStore.user?.name || "",
+      phoneNumber:
+        authStore.currentUserData?.phoneNumber ||
+        authStore.user?.phoneNumber ||
+        "",
+    };
+    visitMsg.value = "";
+    showVisitModal.value = true;
+  });
 };
 
 const submitVisit = async () => {
@@ -563,9 +676,16 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
           </div>
 
           <!-- ── RIGHT STICKY PANEL ─────────────────────────────── -->
-          <aside class="w-full lg:w-[300px] xl:w-[320px] shrink-0 lg:sticky lg:top-24 pt-4 space-y-4 group-buy-aside">
+          <!-- ── RIGHT RAIL ──────────────────────────────────────
+               Two cards: the action card (savings, price, Join Group, Book a
+               Visit, brochure) and the contact card (live tour, RM, Ask R AI)
+               — both things a buyer may want reachable at any point.
+               The About Developer card was moved out to the page flow, since
+               it's reference material rather than an action and was the main
+               contributor to the rail running far past the left column. -->
+          <aside class="w-full lg:w-[300px] xl:w-[340px] shrink-0 lg:sticky lg:top-24 pt-4 space-y-4 group-buy-aside">
 
-            <!-- CARD 1+2: Group buy + Price (single combined card) -->
+            <!-- Group buy + price (single combined card) -->
             <div class="rounded-2xl overflow-hidden border shadow-sm" :class="liveCampaign ? 'border-red-200 group-buy-card--live' : 'border-gray-200'">
 
               <!-- Red section: savings + avatars + join group -->
@@ -646,66 +766,7 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
               </div>
             </div>
 
-            <!-- CARD 3: About Developer -->
-            <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 space-y-4">
-              <h3 class="text-base font-bold text-gray-900">About Developer</h3>
-
-              <!-- Developer identity -->
-              <div class="flex items-center gap-3">
-                <div class="relative shrink-0">
-                  <img
-                    v-if="project.builderLogo"
-                    :src="project.builderLogo"
-                    :alt="project.builderName"
-                    class="w-14 h-14 rounded-full object-cover border border-gray-200"
-                   loading="lazy" decoding="async" />
-                  <div
-                    v-else
-                    class="w-14 h-14 rounded-full bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center text-2xl font-extrabold text-amber-700 border border-amber-200"
-                  >
-                    {{ (project.builderName || "B").slice(0, 1).toUpperCase() }}
-                  </div>
-                  <span class="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-                    <i class="pi pi-check text-white" style="font-size: 9px;"></i>
-                  </span>
-                </div>
-                <div>
-                  <p class="text-sm font-bold text-gray-900">{{ project.builderName || "Developer" }}</p>
-                  <p class="text-xs text-teal-600 font-semibold mt-0.5">Verified Developer</p>
-                </div>
-              </div>
-
-              <!-- Estd + city -->
-              <p class="text-xs text-gray-500">
-                {{ project.region || project.city || "India" }}
-              </p>
-
-              <!-- Stats pill -->
-              <div class="bg-[#F5EDE0] rounded-xl px-4 py-3">
-                <!-- Real counts derived from the catalogue, replacing the
-                     hardcoded "130+ Projects / 1300+ Families" that showed
-                     identically for every builder regardless of size. -->
-                <p class="text-sm font-bold text-gray-800">
-                  {{ builderStats.projectCount || "—" }}
-                  {{ builderStats.projectCount === 1 ? "project" : "projects" }} listed
-                </p>
-                <p class="text-xs text-gray-500 mt-0.5">
-                  <span v-if="builderStats.cityCount">
-                    Across {{ builderStats.cityCount }}
-                    {{ builderStats.cityCount === 1 ? "city" : "cities" }}
-                  </span>
-                  <span v-if="builderStats.cityCount && project.since"> · </span>
-                  <span v-if="project.since">Since {{ project.since }}</span>
-                </p>
-              </div>
-
-              <!-- View profile button -->
-              <button class="w-full border border-[#EB3131] text-[#EB3131] rounded-xl py-2.5 text-sm font-semibold hover:bg-red-50 transition">
-                View Developer Profile
-              </button>
-            </div>
-
-            <!-- CARD 4: Live tour + RM assist + Ask R AI -->
+            <!-- Live tour + RM assist + Ask R AI -->
             <VisitAssistCard
               :tour-link="videoUrl"
               :context-name="project.projectName || 'this project'"
@@ -716,6 +777,44 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
 
           </aside>
         </div>
+      </div>
+
+      <!-- ========== GROUP BUY ==========
+           Sits ABOVE the tab bar deliberately. It used to render between the
+           sticky tabs and the tab bodies, which pushed the tab content half a
+           screen down — switching tabs then required scrolling to see the
+           change. With it here, the sticky tabs sit directly on their own
+           content. Only shown when the builder has an ACTIVE campaign. -->
+      <div v-if="liveCampaign" class="max-w-7xl mx-auto px-4 2xl:px-0 pt-8">
+        <div
+          class="flex items-center justify-between mb-3 rounded-2xl bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 px-5 py-3"
+        >
+          <div>
+            <p class="text-xs uppercase tracking-wider text-orange-700 font-semibold">
+              Group buy live
+            </p>
+            <p class="text-base font-semibold text-gray-900">
+              {{ liveCampaign.title || "Save more by joining together" }}
+            </p>
+            <p class="text-xs text-gray-600 mt-0.5">
+              Current discount:
+              <span class="text-orange-600 font-semibold">
+                {{ liveCampaign.currentDiscountPercent || 0 }}%
+              </span>
+              · Unlocks more as members join
+            </p>
+          </div>
+        </div>
+        <GroupBuyCard
+          :people-joined="groupBuyJoinedCount"
+          :required-people="groupBuyTargetCount"
+          :members="[]"
+          :projectId="project?._id"
+          :customerId="currentCustomerId"
+          :planId="null"
+          :campaign="liveCampaign"
+          :project="project"
+        />
       </div>
 
       <!-- ========== TABS ========== -->
@@ -742,39 +841,6 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
 
       <!-- ========== TAB BODIES ========== -->
       <section class="max-w-7xl mx-auto px-4 2xl:px-0 py-8">
-        <!-- GROUP BUY (shown only when builder has an ACTIVE campaign on this project) -->
-        <div v-if="liveCampaign" class="mb-6">
-          <div
-            class="flex items-center justify-between mb-3 rounded-2xl bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 px-5 py-3"
-          >
-            <div>
-              <p class="text-xs uppercase tracking-wider text-orange-700 font-semibold">
-                Group buy live
-              </p>
-              <p class="text-base font-semibold text-gray-900">
-                {{ liveCampaign.title || "Save more by joining together" }}
-              </p>
-              <p class="text-xs text-gray-600 mt-0.5">
-                Current discount:
-                <span class="text-orange-600 font-semibold">
-                  {{ liveCampaign.currentDiscountPercent || 0 }}%
-                </span>
-                · Unlocks more as members join
-              </p>
-            </div>
-          </div>
-          <GroupBuyCard
-            :people-joined="groupBuyJoinedCount"
-            :required-people="groupBuyTargetCount"
-            :members="[]"
-            :projectId="project?._id"
-            :customerId="currentCustomerId"
-            :planId="null"
-            :campaign="liveCampaign"
-            :project="project"
-          />
-        </div>
-
         <!-- OVERVIEW -->
         <div v-if="activeTab === 'overview'" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div class="lg:col-span-2 bg-white rounded-2xl border p-6">
@@ -1055,6 +1121,78 @@ const onCarouselSlideChange = (swiper) => { activeCarouselIdx.value = swiper.rea
                 Talk to builder
               </button>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== ABOUT THE DEVELOPER ==========
+           Also moved out of the rail: it's reference material, not an action,
+           so it belongs in the page flow rather than in the sticky column. -->
+      <section v-if="project.builderName" class="max-w-7xl mx-auto px-4 2xl:px-0 py-8">
+        <div
+          v-reveal
+          class="bg-white rounded-card border border-gray-200 shadow-e1 p-6 md:p-7 flex flex-col md:flex-row md:items-center gap-6"
+        >
+          <!-- Identity -->
+          <div class="flex items-center gap-4 shrink-0">
+            <div class="relative shrink-0">
+              <img
+                v-if="project.builderLogo"
+                :src="project.builderLogo"
+                :alt="project.builderName"
+                class="w-16 h-16 rounded-full object-cover border border-gray-200"
+                loading="lazy"
+                decoding="async"
+              />
+              <div
+                v-else
+                class="w-16 h-16 rounded-full bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center text-2xl font-extrabold text-amber-700 border border-amber-200"
+              >
+                {{ (project.builderName || "B").slice(0, 1).toUpperCase() }}
+              </div>
+              <span class="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center ring-2 ring-white">
+                <i class="pi pi-check text-white" style="font-size: 9px"></i>
+              </span>
+            </div>
+            <div class="min-w-0">
+              <p class="text-[11px] font-bold uppercase tracking-wider text-gray-400">
+                About the developer
+              </p>
+              <p class="text-lg font-bold text-gray-900 leading-tight mt-1 truncate">
+                {{ project.builderName }}
+              </p>
+              <p class="text-xs text-teal-600 font-semibold mt-0.5">Verified Developer</p>
+            </div>
+          </div>
+
+          <!-- Counted facts -->
+          <div class="flex items-center gap-3 md:gap-4 flex-wrap md:ml-auto">
+            <div class="bg-[#F5EDE0] rounded-control px-4 py-3 min-w-[120px]">
+              <p class="text-lg font-extrabold text-gray-900 leading-none">
+                {{ builderStats.projectCount || "—" }}
+              </p>
+              <p class="text-[11px] text-gray-500 mt-1">
+                {{ builderStats.projectCount === 1 ? "project" : "projects" }} listed
+              </p>
+            </div>
+            <div v-if="builderStats.cityCount" class="bg-gray-50 rounded-control px-4 py-3 min-w-[110px]">
+              <p class="text-lg font-extrabold text-gray-900 leading-none">
+                {{ builderStats.cityCount }}
+              </p>
+              <p class="text-[11px] text-gray-500 mt-1">
+                {{ builderStats.cityCount === 1 ? "city" : "cities" }}
+              </p>
+            </div>
+            <div v-if="project.since" class="bg-gray-50 rounded-control px-4 py-3 min-w-[110px]">
+              <p class="text-lg font-extrabold text-gray-900 leading-none">{{ project.since }}</p>
+              <p class="text-[11px] text-gray-500 mt-1">established</p>
+            </div>
+
+            <button
+              class="border border-brand text-brand rounded-control px-5 py-3 text-sm font-semibold hover:bg-brand-light transition-colors duration-200 shrink-0"
+            >
+              View profile
+            </button>
           </div>
         </div>
       </section>

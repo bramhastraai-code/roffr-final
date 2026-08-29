@@ -207,7 +207,10 @@ const callViaWhatsapp = (e) => {
 const joinGroup = (e) => {
   e.stopPropagation()
   if (!campaign.value || !gb.value?.canJoin) return
-  joinModalOpen.value = true
+  // Public to browse, sign-in to commit.
+  authStore.requireAuth(() => {
+    joinModalOpen.value = true
+  })
 }
 
 const handleJoined = async () => {
@@ -218,16 +221,32 @@ const handleJoined = async () => {
 </script>
 
 <template>
-  <article
+  <!-- A real <a href>, not a div with a click handler. This card is the entry
+       point to every project across 11 surfaces, so it decides whether search
+       engines can reach the catalogue at all — and it gives middle-click,
+       "open in new tab" and keyboard access for free. -->
+  <component
+    :is="project._id ? 'router-link' : 'article'"
+    :to="project._id ? `${detailPath}/${project._id}` : undefined"
     class="group rounded-3xl border border-gray-200 bg-white shadow-sm hover:shadow-xl transition-[transform,box-shadow] duration-200 hover:-translate-y-1 cursor-pointer flex flex-col overflow-hidden"
-    @click="go"
   >
     <!-- ── Image ─────────────────────────────────────────── -->
     <div class="relative h-64 bg-gray-100 overflow-hidden shrink-0">
-      <div
-        class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
-        :style="cover ? { backgroundImage: `url('${cover}')` } : {}"
-      ></div>
+      <!-- A real <img> rather than a CSS background: gains alt text, Google
+           Images indexing, lazy loading and intrinsic size (less CLS). -->
+      <img
+        v-if="cover"
+        :src="cover"
+        :alt="`${project.projectName || 'Project'}${project.city ? ` in ${project.city}` : ''}`"
+        width="480"
+        height="256"
+        loading="lazy"
+        decoding="async"
+        class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+      />
+      <div v-else class="absolute inset-0 flex items-center justify-center">
+        <i class="pi pi-building text-4xl text-gray-300"></i>
+      </div>
       <!-- subtle gradient at bottom -->
       <div class="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent"></div>
 
@@ -274,7 +293,7 @@ const handleJoined = async () => {
 
       <!-- Compare toggle -->
       <button
-        @click="toggleCompare"
+        @click.prevent.stop="toggleCompare"
         class="absolute top-4 right-4 flex items-center gap-1.5 rounded-full pl-2 pr-2.5 py-1.5 text-[11px] font-bold shadow-sm transition-colors duration-200"
         :class="inCompare
           ? 'bg-gray-900 text-white'
@@ -332,7 +351,7 @@ const handleJoined = async () => {
           </div>
         </div>
         <button
-          @click="callViaWhatsapp"
+          @click.prevent.stop="callViaWhatsapp"
           class="w-12 h-12 bg-[#EB3131] hover:bg-[#c72828] rounded-full flex items-center justify-center shadow-md transition-colors duration-200 shrink-0"
           title="Call now"
         >
@@ -429,14 +448,14 @@ const handleJoined = async () => {
         <!-- Button: Join Group (active campaign) OR View Project Details -->
         <button
           v-if="showGroupBuy && gb && gb.canJoin"
-          @click="joinGroup"
+          @click.prevent.stop="joinGroup"
           class="w-full bg-[#EB3131] hover:bg-[#c72828] text-white text-[15px] font-bold py-3.5 rounded-2xl transition-colors duration-200 active:scale-[0.98] shadow-sm"
         >
           Join Group
         </button>
         <button
           v-else
-          @click.stop="go"
+          @click.stop
           class="w-full border border-gray-300 hover:border-[#EB3131] hover:text-[#EB3131] text-gray-700 text-[15px] font-bold py-3.5 rounded-2xl transition-colors duration-200 active:scale-[0.98]"
         >
           View Project Details
@@ -471,7 +490,7 @@ const handleJoined = async () => {
         </div>
       </div>
     </div>
-  </article>
+  </component>
 
   <!-- Group Buy Join Modal -->
   <GroupBuyJoinModal

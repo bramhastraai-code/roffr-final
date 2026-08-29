@@ -318,10 +318,17 @@ export const useProjectStore = defineStore("project", () => {
    */
   const getFeaturedProjects = async (limit = 12) => {
     try {
+      // NOTE: makeRequest is (endpoint, method, data, config, params, …).
+      // This was previously called as ("GET", url, { params }), so the URL was
+      // being passed as the HTTP method and every request threw — which is why
+      // the Featured section was always empty.
       const response = await makeRequest(
-        "GET",
         endpoints.marketplaceFeatured("projects"),
-        { params: { limit } }
+        "GET",
+        {},
+        {},
+        { limit },
+        0
       );
       const items = response?.data?.data || response?.data || [];
       featuredProjects.value = Array.isArray(items) ? items : [];
@@ -336,9 +343,12 @@ export const useProjectStore = defineStore("project", () => {
   const getTrendingProjects = async (limit = 12) => {
     try {
       const response = await makeRequest(
-        "GET",
         endpoints.marketplaceTrending("projects"),
-        { params: { limit } }
+        "GET",
+        {},
+        {},
+        { limit },
+        0
       );
       const items = response?.data?.data || response?.data || [];
       trendingProjects.value = Array.isArray(items) ? items : [];

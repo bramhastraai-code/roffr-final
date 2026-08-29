@@ -3,6 +3,7 @@ import { computed } from "vue";
 import { useRouter } from "vue-router";
 import { WHATSAPP } from "@/data/properties.js";
 import { ratingOf, starIcon, initialsOf } from "@/utils/brokerDisplay";
+import { useAuthStore } from "@/stores/authStore";
 
 const props = defineProps({
   // Video/tour URL — opened directly; without one, the tour is requested on WhatsApp
@@ -20,6 +21,7 @@ const props = defineProps({
 
 const emit = defineEmits(["book-visit"]);
 const router = useRouter();
+const authStore = useAuthStore();
 
 // Partner's own number when assigned, company line otherwise
 const contactNumber = computed(() => {
@@ -35,12 +37,14 @@ const takeLiveTour = () => {
   else wa(`Hi, I'd like a live video tour of ${props.contextName}. When can we schedule it?`);
 };
 
-const callRm = () =>
-  wa(
-    props.broker
-      ? `Hi ${props.broker.name || ""}, I have some questions about ${props.contextName}.`
-      : `Hi, I have some questions about ${props.contextName}. Please connect me with an RM.`,
-  );
+// Reaching a partner directly is the lead — sign in first. Viewing the card,
+// and taking the self-serve video tour, stay open to everyone.
+const callRm = () => {
+  const message = props.broker
+    ? `Hi ${props.broker.name || ""}, I have some questions about ${props.contextName}.`
+    : `Hi, I have some questions about ${props.contextName}. Please connect me with an RM.`;
+  authStore.requireAuth(() => wa(message));
+};
 
 const viewBrokerProfile = () => {
   if (props.broker?._id) router.push(`/channel-partners/${props.broker._id}`);

@@ -191,7 +191,11 @@ const visitForm = ref({
 const offerForm = ref({ amount: "", note: "" });
 const contactForm = ref({ name: "", phone: "", message: "" });
 
-const openModal = (kind) => {
+// All three modal kinds (visit / offer / contact agent) are lead-capture
+// actions, so they sign the user in first. The listing itself stays public.
+const openModal = (kind) => authStore.requireAuth(() => openModalFor(kind));
+
+const openModalFor = (kind) => {
   modalKind.value = kind;
   modalMsg.value = "";
   if (kind === "visit") {

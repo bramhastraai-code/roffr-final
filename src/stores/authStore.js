@@ -1,7 +1,8 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import { makeRequest } from "@/request/request";
 import endpoints from "@/request/endpoints";
+import { useModalStore } from "@/stores/modalStore";
 
 const STORAGE_KEYS = {
   accessToken: "accessToken",
@@ -149,12 +150,38 @@ export const useAuthStore = defineStore("auth", () => {
     localStorage.removeItem("userRequirements");
   };
 
+  /**
+   * Gate an action behind sign-in without gating the page it lives on.
+   *
+   * Browsing is public; committing is not. Wrap the commit points — Join
+   * Group, Book a Visit, revealing a partner's number — and anonymous users
+   * get the login modal instead of being bounced off the page they were
+   * reading. The original action runs automatically once they're signed in.
+   *
+   *   const join = () => requireAuth(() => { joinModalOpen.value = true })
+   */
+  const requireAuth = (action) => {
+    if (typeof action !== "function") return;
+    if (isAuthenticated.value) return action();
+
+    const modalStore = useModalStore();
+    modalStore.openLoginModal();
+
+    // Resume once, on the transition to signed-in.
+    const stop = watch(isAuthenticated, (ok) => {
+      if (!ok) return;
+      stop();
+      action();
+    });
+  };
+
   return {
     user,
     token,
     isAuthenticated,
     otpData,
     currentUserData,
+    requireAuth,
     login,
     verifyOtp,
     setSession,

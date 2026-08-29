@@ -29,10 +29,10 @@ import RecentlyViewedSection from '@/sections/homeSections/RecentlyViewedSection
       <HeroSearchBar />
     </Reveal>
 
-    <!-- Only renders for returning visitors who have viewed something -->
-    <Reveal>
-      <RecentlyViewedSection />
-    </Reveal>
+    <!-- Only renders for returning visitors who have viewed something.
+         Not wrapped in <Reveal>: its header and cards reveal themselves with
+         v-reveal, and nesting the two would double-animate the same content. -->
+    <RecentlyViewedSection />
 
     <Reveal>
       <DealOfTheDay />
@@ -50,9 +50,8 @@ import RecentlyViewedSection from '@/sections/homeSections/RecentlyViewedSection
       <FeaturedProjectsSection />
     </Reveal>
 
-    <Reveal>
-      <CitiesSection />
-    </Reveal>
+    <!-- Not wrapped: the bento tiles stagger themselves with v-reveal -->
+    <CitiesSection />
 
     <Reveal>
       <HowItWorks />

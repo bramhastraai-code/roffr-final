@@ -13,6 +13,18 @@ const props = defineProps({
   zoom: { type: Number, default: 11 },
   // Small overlay chip, e.g. "Showing 12 of 775 — use pagination"
   note: { type: String, default: "" },
+  // Panning/zooming is clamped to this box so the map can't be zoomed out to
+  // the whole world or dragged off to another continent — every project is in
+  // India. Roughly the Indian mainland plus a margin.
+  bounds: {
+    type: Array,
+    default: () => [
+      [5.5, 66.0],   // south-west
+      [38.5, 99.5],  // north-east
+    ],
+  },
+  // Zoom 4 fits India in a typical viewport; below that is just empty ocean.
+  minZoom: { type: Number, default: 4 },
 });
 
 const emit = defineEmits(["pin-click"]);
@@ -106,14 +118,25 @@ watch(validPins, () => {
 });
 
 onMounted(() => {
+  const indiaBounds = L.latLngBounds(props.bounds);
+
   map = L.map(mapEl.value, {
     center: props.center,
     zoom: props.zoom,
     scrollWheelZoom: true,
     zoomControl: true,
+    minZoom: props.minZoom,
+    maxBounds: indiaBounds,
+    // 1.0 = a hard edge; dragging past the box simply doesn't move.
+    maxBoundsViscosity: 1.0,
   });
+
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "&copy; OpenStreetMap contributors",
+    // Stop the world repeating sideways when the viewport is wider than the
+    // bounded area, and skip requesting tiles outside India entirely.
+    noWrap: true,
+    bounds: indiaBounds,
   }).addTo(map);
   markerLayer = L.layerGroup().addTo(map);
   map.on("dragstart", markUserMoved);

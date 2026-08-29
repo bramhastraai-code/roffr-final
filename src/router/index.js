@@ -55,8 +55,7 @@ const router = createRouter({
         {
           name: "project",
           path: "/project",
-          component: ProjectView2,
-          meta: { requiresAuth: true }
+          component: ProjectView2
         },
         {
           name: "search",
@@ -66,47 +65,37 @@ const router = createRouter({
         {
           name: "properties",
           path: "/properties",
-          component: PropertiesView2,
-          meta: { requiresAuth: true }
+          component: PropertiesView2
         },
         {
           name: "contact",
           path: "/contact",
           component: ContactusView
         },
-        {
-          name: "broker-list",
-          path: "/broker-list",
-          component: BrokerListView
-        },
-        {
-          name: "broker-details",
-          path: "/broker-details/:id",
-          component: BrokerDetailsView
-        },
+        // /broker-list and /broker-details/:id were removed: they rendered the
+        // same components as /channel-partners(/:id), giving every partner two
+        // URLs for identical content. Redirects preserve any existing links.
+        { path: "/broker-list", redirect: "/channel-partners" },
+        { path: "/broker-details/:id", redirect: to => `/channel-partners/${to.params.id}` },
         {
           name: "channel-partners",
           path: "/channel-partners",
-          component: BrokerListView,
-          meta: { requiresAuth: true }
+          component: BrokerListView
         },
         {
           name: "channel-partner-details",
           path: "/channel-partners/:id",
-          component: BrokerDetailsView,
-          meta: { requiresAuth: true }
+          component: BrokerDetailsView
         },
         {
           name: "builders",
           path: "/builders",
-          component: BuilderListView,
-          meta: { requiresAuth: true }
+          component: BuilderListView
         },
         {
           name: "builder-details",
           path: "/builders/:id",
-          component: BuilderDetailsView,
-          meta: { requiresAuth: true }
+          component: BuilderDetailsView
         },
         {
           name: "social",
@@ -116,14 +105,12 @@ const router = createRouter({
         {
           name: "project-details",
           path: "/project-details/:id",
-          component: ProjectDetailView,
-          meta: { requiresAuth: true }
+          component: ProjectDetailView
         },
         {
           name: "property-details",
           path: "/property-details/:id",
-          component: PropertyDetailView,
-          meta: { requiresAuth: true }
+          component: PropertyDetailView
         },
         {
           name: "resources",
@@ -163,7 +150,8 @@ const router = createRouter({
         {
           name: "my-group-buys",
           path: "/my-group-buys",
-          component: () => import('@/views/MyGroupBuysView.vue')
+          component: () => import('@/views/MyGroupBuysView.vue'),
+          meta: { requiresAuth: true }
         },
         {
           name: "channel-partner",
@@ -193,7 +181,8 @@ const router = createRouter({
         {
           name: "dashboard",
           path: "/dashboard",
-          component: () => import('@/views/DashboardView.vue')
+          component: () => import('@/views/DashboardView.vue'),
+          meta: { requiresAuth: true }
         },
         {
           name: "platforms",
@@ -250,12 +239,25 @@ const router = createRouter({
   }
 })
 
+// Only genuinely private pages are gated (/dashboard, /my-group-buys).
+// Discovery — projects, properties, builders, partners — is public, so search
+// engines and first-time visitors can reach it; the login prompt happens at
+// the point of action instead (Join Group, Book a Visit, contact a partner).
 router.beforeEach((to, _from, next) => {
-  if (to.meta.requiresAuth && !localStorage.getItem('accessToken')) {
-    next({ name: 'login', query: { redirect: to.fullPath } })
-  } else {
-    next()
+  if (!to.meta.requiresAuth) return next()
+
+  // Storage can throw outright in private mode or with cookies blocked. This
+  // read is inside the global guard, so an uncaught throw here breaks EVERY
+  // navigation in the app — treat an unreadable store as "not logged in".
+  let token = null
+  try {
+    token = localStorage.getItem('accessToken')
+  } catch {
+    token = null
   }
+
+  if (token) return next()
+  next({ name: 'login', query: { redirect: to.fullPath } })
 })
 
 export default router

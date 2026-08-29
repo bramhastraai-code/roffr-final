@@ -71,8 +71,9 @@ const basis = computed(() => {
 
     <div class="flex gap-5 overflow-x-auto pb-2 snap-x no-scrollbar">
       <div
-        v-for="p in similar"
+        v-for="(p, i) in similar"
         :key="p._id"
+        v-reveal="{ y: 14, delay: i * 55 }"
         class="snap-start shrink-0 w-[300px] md:w-[340px]"
       >
         <ProjectCard :project="p" :show-group-buy="true" />

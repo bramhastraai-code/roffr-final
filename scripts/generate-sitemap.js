@@ -14,12 +14,19 @@ import { writeFileSync, readFileSync, existsSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { blogs } from '../src/data/blogs.js'
 import { news } from '../src/data/news.js'
 import { caseStudies } from '../src/dummyData/case-study.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
+
+// Blogs are read straight from the JSON rather than via src/data/blogsData.js,
+// because that module imports through the Vite alias ('@/data/...') which bare
+// Node cannot resolve. Only `slug` is needed here, and it passes through
+// blogsData untransformed, so reading the source is equivalent.
+const blogs = JSON.parse(
+  readFileSync(resolve(ROOT, 'src/data/1000_blogs.json'), 'utf8'),
+).blogs ?? []
 const SITE = 'https://roffr.com'
 const TODAY = new Date().toISOString().slice(0, 10)
 
@@ -102,6 +109,9 @@ async function generate() {
   console.log(`   API: ${API}\n`)
 
   const entries = []
+  // Catalogue sections that came back empty. Treated as a build failure at the
+  // end, rather than a warning that scrolls past in CI.
+  const missingCatalogue = []
 
   // Static pages
   for (const [loc, opts] of STATIC_PAGES) {
@@ -110,7 +120,10 @@ async function generate() {
   console.log(`  ✓ ${STATIC_PAGES.length} static pages`)
 
   // ── Projects ──────────────────────────────────────────────────────────────
-  const projRes = await apiFetch('/projects?type=project&limit=2000&page=1')
+  // NOTE: this API ignores `limit`/`page`; it honours `pageSize`/`pageNumber`.
+  // With limit=2000 it silently returned only 10 rows, which is why the live
+  // sitemap listed 10 projects instead of 775.
+  const projRes = await apiFetch('/projects?type=project&pageSize=2000&pageNumber=1')
   const projects = projRes?.data?.projects ?? projRes?.projects ?? []
   if (projects.length) {
     for (const p of projects) {
@@ -124,15 +137,22 @@ async function generate() {
     }
     console.log(`  ✓ ${projects.length} projects`)
   } else {
-    console.warn('  ⚠  Projects skipped (API offline or empty)')
+    // Hard failure, not a warning: the catalogue IS the sitemap. Shipping one
+    // without any listings is how the live file ended up with 2,241 URLs of
+    // which only 20 were projects/properties, while the build reported success.
+    missingCatalogue.push('projects')
   }
 
   // ── Properties ────────────────────────────────────────────────────────────
-  const propRes = await apiFetch('/projects?type=property&limit=2000&page=1')
+  // Must use /properties/roffer, NOT /projects?type=property — that endpoint
+  // ignores `type` and returns the same project records, so the previous
+  // version emitted /property-details/<projectId> for every project: hundreds
+  // of URLs pointing at the wrong entity.
+  const propRes = await apiFetch('/properties/roffer?pageSize=2000&pageNumber=1')
   const properties =
+    propRes?.data?.properties ??
     propRes?.data?.results ??
-    propRes?.results ??
-    propRes?.data?.projects ??
+    (Array.isArray(propRes?.data) ? propRes.data : null) ??
     []
   if (properties.length) {
     for (const p of properties) {
@@ -146,7 +166,7 @@ async function generate() {
     }
     console.log(`  ✓ ${properties.length} properties`)
   } else {
-    console.warn('  ⚠  Properties skipped (API offline or empty)')
+    missingCatalogue.push('properties')
   }
 
   // ── Builders ──────────────────────────────────────────────────────────────
@@ -182,10 +202,11 @@ async function generate() {
       if (!id) continue
       const lastmod = toDate(b.updatedAt ?? b.createdAt)
       // Both URL shapes point to the same detail component
-      entries.push(urlEntry(`/broker-details/${id}`,    { lastmod, changefreq: 'monthly', priority: '0.7' }))
-      entries.push(urlEntry(`/channel-partners/${id}`,  { lastmod, changefreq: 'monthly', priority: '0.7' }))
+      // One canonical shape only — /broker-details/:id renders the same
+      // component and has been removed from the router.
+      entries.push(urlEntry(`/channel-partners/${id}`, { lastmod, changefreq: 'monthly', priority: '0.7' }))
     }
-    console.log(`  ✓ ${brokers.length} brokers (×2 URL shapes)`)
+    console.log(`  ✓ ${brokers.length} brokers`)
   } else {
     console.warn('  ⚠  Brokers skipped (API offline or empty)')
   }
@@ -232,6 +253,14 @@ async function generate() {
     ...entries,
     '</urlset>',
   ].join('\n')
+
+  if (missingCatalogue.length) {
+    throw new Error(
+      `${missingCatalogue.join(' and ')} returned no results from ${API}.\n` +
+      `   The catalogue is the point of the sitemap — refusing to write one without it.\n` +
+      `   Check the API is reachable, then re-run the build.`,
+    )
+  }
 
   const out = resolve(ROOT, 'public', 'sitemap.xml')
   writeFileSync(out, xml, 'utf-8')

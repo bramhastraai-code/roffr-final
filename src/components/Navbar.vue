@@ -83,11 +83,12 @@ const handleLogout = () => { authStore.logout(); router.push("/"); isMenuOpen.va
 
       <!-- Nav links -->
       <nav class="flex-1 overflow-y-auto px-3 py-3">
-        <button
+        <router-link
           v-for="link in links"
           :key="link.path"
-          @click="goTo(link.path)"
-          class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-150 mb-0.5"
+          :to="link.path"
+          @click="isMenuOpen = false"
+          class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors duration-150 mb-0.5"
           :class="isActive(link.path)
             ? 'bg-red-50 text-[#EB3131]'
             : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'"
@@ -101,7 +102,7 @@ const handleLogout = () => { authStore.logout(); router.push("/"); isMenuOpen.va
           </div>
           {{ link.label }}
           <i v-if="isActive(link.path)" class="pi pi-angle-right text-[#EB3131] text-xs ml-auto"></i>
-        </button>
+        </router-link>
       </nav>
 
       <!-- Auth bottom -->
@@ -162,7 +163,7 @@ const handleLogout = () => { authStore.logout(); router.push("/"); isMenuOpen.va
           class="w-full rounded-full p-[1.5px] ai-gradient-border text-left cursor-pointer group"
         >
           <div
-            class="w-full flex items-center gap-2 rounded-full px-4 py-1"
+            class="w-full flex items-center gap-2 rounded-full pl-4 pr-1 py-1"
             :class="isScrolled ? 'bg-black' : 'bg-white'"
           >
             <svg class="w-4 h-4 shrink-0 text-purple-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c0 0 1.5 5.5 4 7.5S23 12 23 12s-4.5 1.5-7 3.5S12 22 12 22s-1.5-5.5-4-7.5S1 12 1 12s4.5-1.5 7-3.5S12 2 12 2z"/></svg>
@@ -173,7 +174,7 @@ const handleLogout = () => { authStore.logout(); router.push("/"); isMenuOpen.va
               Ask RIOS AI — your real estate assistant…
             </span>
             <span
-              class="shrink-0 h-8 px-4 rounded-full bg-gradient-to-r from-purple-500 to-rose-500 text-white text-sm font-semibold flex items-center justify-center group-hover:opacity-90 transition-opacity whitespace-nowrap"
+              class="shrink-0 h-9 px-4 rounded-full bg-gradient-to-r from-purple-500 to-rose-500 text-white text-sm font-semibold flex items-center justify-center group-hover:opacity-90 transition-opacity whitespace-nowrap"
             >
               Ask RIOS
             </span>
@@ -254,10 +255,11 @@ const handleLogout = () => { authStore.logout(); router.push("/"); isMenuOpen.va
       >
         <div class="max-w-7xl mx-auto px-4 xl:px-0 py-4">
           <div class="flex flex-wrap gap-2">
-            <button
+            <router-link
               v-for="link in links"
               :key="link.path"
-              @click="goTo(link.path)"
+              :to="link.path"
+              @click="isMenuOpen = false"
               class="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-colors duration-200"
               :class="isActive(link.path)
                 ? 'bg-[#EB3131] text-white shadow-sm shadow-red-200'
@@ -267,7 +269,7 @@ const handleLogout = () => { authStore.logout(); router.push("/"); isMenuOpen.va
             >
               <i class="pi text-xs" :class="link.icon"></i>
               {{ link.label }}
-            </button>
+            </router-link>
           </div>
         </div>
       </div>

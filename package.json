@@ -13,6 +13,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@unhead/vue": "^3.4.0",
     "@vue-leaflet/vue-leaflet": "^0.10.1",
     "apexcharts": "^5.3.6",
     "axios": "^1.13.2",

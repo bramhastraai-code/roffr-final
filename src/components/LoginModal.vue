@@ -25,7 +25,6 @@ const handleSignIn = async() => {
   // Basic validation
   if (mobileNumber.value.length === 10) {
     stepNumber.value = 2;
-    console.log(step.value)
   }
 
   await authStore.login(mobileNumber.value)
@@ -34,7 +33,7 @@ const handleSignIn = async() => {
 const handleVerify = () => {
   console.log("Verifying OTP:", otpCode.value);
   // Simulate verification success
-  step.value = 3;
+  stepNumber.value = 3;
 };
 
 const handleJoin = () => {
@@ -46,7 +45,7 @@ const handleJoin = () => {
   });
   closeLoginModal();
   // Reset state
-  step.value = 1;
+  stepNumber.value = 1;
   mobileNumber.value = "";
   otpCode.value = "";
   selectedBhk.value = "";
@@ -57,7 +56,7 @@ const handleJoin = () => {
 };
 
 const handleClose = () => {
-  step.value = 1;
+  stepNumber.value = 1;
   mobileNumber.value = "";
   otpCode.value = "";
   selectedBhk.value = "";
@@ -88,7 +87,7 @@ const handleClose = () => {
         <!-- Left Side: Login / Requirements -->
         <div class="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center">
           <h2 class="font-marcellus text-3xl md:text-4xl mb-2">
-            <span v-if="step < 3">
+            <span v-if="stepNumber < 3">
               Login with mobile number to explore<br />
               <span class="text-[#EB3131]">Roffr</span>
             </span>

@@ -86,7 +86,7 @@ const goToCity = (city) => {
   <section v-if="loading || cities.length" class="max-w-7xl mx-auto py-14 px-4 xl:px-0">
 
     <!-- Header row -->
-    <div class="flex items-end justify-between gap-4">
+    <div v-reveal class="flex items-end justify-between gap-4">
       <div>
         <span class="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full bg-red-50 text-[#EB3131] uppercase tracking-wide mb-3">
           <i class="pi pi-map-marker text-[9px]"></i>
@@ -122,8 +122,9 @@ const goToCity = (city) => {
       <div
         v-for="(city, idx) in cities"
         :key="city.name"
+        v-reveal="{ y: 14, delay: idx * 55 }"
         @click="goToCity(city)"
-        class="group relative rounded-[28px] overflow-hidden cursor-pointer bg-gray-900 shadow-sm hover:shadow-2xl hover:shadow-gray-400/40 transition-all duration-300 hover:-translate-y-1"
+        class="group relative rounded-[28px] overflow-hidden cursor-pointer bg-gray-900 shadow-sm hover:shadow-2xl hover:shadow-gray-400/40 transition-[transform,box-shadow] duration-300 hover:-translate-y-1"
         :class="cardClass(idx)"
       >
         <!-- Cover image from a project in this city -->

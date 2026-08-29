@@ -25,12 +25,17 @@ const slidePrev = () => swiperInstance.value?.slidePrev();
 const slideNext = () => swiperInstance.value?.slideNext();
 
 const projectStore = useProjectStore();
-const { featuredProjects } = storeToRefs(projectStore);
+const { featuredProjects, projectPropertyListData } = storeToRefs(projectStore);
 
-// When the swiper reaches its last slide, pull the next page of projects
-// so the carousel keeps going through the full catalog
+// True while we're showing the general catalogue because no curated list came
+// back. Drives the subheading and whether infinite-scroll makes sense.
+const usingFallback = ref(false);
+
+// When the swiper reaches its last slide, pull the next page of projects so
+// the carousel keeps going. Only meaningful in fallback mode — the curated
+// list is a fixed set, not a paginated feed.
 const maybeLoadMore = async (swiper) => {
-  if (!swiper.isEnd) return;
+  if (!swiper.isEnd || !usingFallback.value) return;
   await projectStore.loadMoreProjects();
   await nextTick();
   swiper.update();
@@ -39,13 +44,26 @@ const maybeLoadMore = async (swiper) => {
 };
 
 onMounted(async () => {
-  // Pull the super-admin curated featured list. Previously this section
-  // re-used the full project list, so every active project showed up
-  // under "Featured" — the curation flag now drives the real feed.
+  // Prefer the super-admin curated list (`isFeaturedOnMarketplace`).
   await projectStore.getFeaturedProjects();
+
+  // /marketplace/projects/featured is not built yet (404 as of now), so this
+  // fallback is what actually runs today: show the general catalogue rather
+  // than an empty section. Once the endpoint ships, the curated list wins
+  // automatically and this branch stops firing — no code change needed.
+  if (!featuredProjects.value?.length) {
+    usingFallback.value = true;
+    if (!projectPropertyListData.value?.length) {
+      await projectStore.getProjectList();
+    }
+  }
 });
 
-const projects = computed(() => featuredProjects.value || []);
+const projects = computed(() =>
+  usingFallback.value
+    ? projectPropertyListData.value || []
+    : featuredProjects.value || [],
+);
 </script>
 
 <template>
@@ -61,7 +79,11 @@ const projects = computed(() => featuredProjects.value || []);
         <h2 class="font-intertight font-bold text-[26px] md:text-[34px] xl:text-[40px] text-[#1a2b5f] leading-tight">
           Featured Projects
         </h2>
-        <p class="text-sm text-gray-500 mt-1">Handpicked properties curated by our experts</p>
+        <p class="text-sm text-gray-500 mt-1">
+          {{ usingFallback
+            ? "Explore projects from across the network"
+            : "Handpicked properties curated by our experts" }}
+        </p>
       </div>
 
       <!-- Nav buttons -->
@@ -89,10 +111,10 @@ const projects = computed(() => featuredProjects.value || []);
       </div>
     </div>
 
-    <!-- No projects at all -->
+    <!-- Only reached if the curated list AND the catalogue are both empty -->
     <div v-if="!projects.length" class="text-center py-20 text-gray-400">
       <i class="pi pi-star text-4xl mb-4 block opacity-30"></i>
-      <p class="text-sm font-medium">No featured projects available right now</p>
+      <p class="text-sm font-medium">No projects available right now</p>
     </div>
 
     <!-- Filters + results -->
