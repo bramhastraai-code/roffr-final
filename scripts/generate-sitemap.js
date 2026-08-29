@@ -44,8 +44,17 @@ function loadEnv() {
   )
 }
 
-const env = loadEnv()
+// Real environment variables win over the .env file. Hosts like Vercel inject
+// config as process.env and may not ship a .env at all — without this the API
+// URL silently fell back to localhost during a deploy, so every request failed.
+const env = { ...loadEnv(), ...process.env }
 const API = (env.VITE_API_BASE_URL || 'http://localhost:3333').replace(/\/$/, '')
+
+// A missing catalogue should be loud, but it must not block a deploy: the
+// build would then depend on a third-party API being reachable from the build
+// container. Set SITEMAP_STRICT=1 (locally or in a scheduled job) to turn it
+// back into a hard failure.
+const STRICT = env.SITEMAP_STRICT === '1' || env.SITEMAP_STRICT === 'true'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -254,15 +263,34 @@ async function generate() {
     '</urlset>',
   ].join('\n')
 
+  const out = resolve(ROOT, 'public', 'sitemap.xml')
+
   if (missingCatalogue.length) {
-    throw new Error(
-      `${missingCatalogue.join(' and ')} returned no results from ${API}.\n` +
-      `   The catalogue is the point of the sitemap — refusing to write one without it.\n` +
-      `   Check the API is reachable, then re-run the build.`,
+    const summary = `${missingCatalogue.join(' and ')} returned no results from ${API}`
+
+    if (STRICT) {
+      throw new Error(
+        `${summary}.\n` +
+        `   SITEMAP_STRICT is set — refusing to write a sitemap without the catalogue.`,
+      )
+    }
+
+    // Keep whatever is already committed rather than overwriting it with a
+    // sitemap that omits the listings. Better a slightly stale sitemap than
+    // one that tells Google the catalogue disappeared — and better than a
+    // failed deploy.
+    console.warn(
+      `\n⚠  ${summary}.\n` +
+      `   Keeping the existing public/sitemap.xml instead of writing an incomplete one.\n` +
+      `   The deploy continues; re-run once the API is reachable to refresh it.\n`,
     )
+    if (!existsSync(out)) {
+      console.warn('   (No existing sitemap found — writing the partial one so the build has something.)')
+      writeFileSync(out, xml, 'utf-8')
+    }
+    return
   }
 
-  const out = resolve(ROOT, 'public', 'sitemap.xml')
   writeFileSync(out, xml, 'utf-8')
   console.log(`\n✅ Wrote ${entries.length} URLs → public/sitemap.xml\n`)
 }
