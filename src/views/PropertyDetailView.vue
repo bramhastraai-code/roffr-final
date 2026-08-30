@@ -434,7 +434,13 @@ const handleCompare = () => {
               </div>
             </div>
 
-            <aside class="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col gap-4 shadow-sm">
+            <!-- ── RIGHT RAIL ──────────────────────────────────────
+                 Matches the project detail page: the action card (price,
+                 specs, brochure, schedule a visit) plus the contact card,
+                 both kept beside the gallery rather than as a full-width
+                 band below it. -->
+            <aside class="flex flex-col gap-4">
+            <div class="bg-white border border-gray-200 rounded-2xl p-5 flex flex-col gap-4 shadow-sm">
               <div v-if="priceLabel">
                 <p class="text-xs uppercase tracking-wider text-gray-500">Price</p>
                 <p class="text-3xl font-bold text-gray-900 leading-tight">{{ priceLabel }}</p>
@@ -504,21 +510,19 @@ const handleCompare = () => {
               >
                 Schedule a visit
               </button>
+              </div>
+
+              <!-- Live tour + RM assist + Ask R AI -->
+              <VisitAssistCard
+                :tour-link="heroVideos[0] || ''"
+                :context-name="property?.title || 'this property'"
+                :rios-query="riosQuery"
+                :broker="assignedBroker"
+                @book-visit="openModal('visit')"
+              />
             </aside>
           </div>
         </div>
-      </section>
-
-      <!-- ========== LIVE TOUR / RM ASSIST / ASK R AI ========== -->
-      <section class="max-w-7xl mx-auto px-4 2xl:px-0 py-6">
-        <VisitAssistCard
-          horizontal
-          :tour-link="heroVideos[0] || ''"
-          :context-name="property?.title || 'this property'"
-          :rios-query="riosQuery"
-          :broker="assignedBroker"
-          @book-visit="openModal('visit')"
-        />
       </section>
 
       <!-- ========== TABS ========== -->

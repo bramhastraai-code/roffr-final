@@ -245,7 +245,7 @@ const handleClose = () => {
                 </li>
                 <li class="flex items-start gap-3">
                   <i class="pi pi-check text-white mt-1"></i>
-                  <span>Exclusive Discounts Up to 30%</span>
+                  <span>Exclusive Discounts Up to 15%</span>
                 </li>
                 <li class="flex items-start gap-3">
                   <i class="pi pi-check text-white mt-1"></i>

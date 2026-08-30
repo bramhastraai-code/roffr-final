@@ -136,7 +136,7 @@ const stats = [
               </div>
               <div class="flex items-center gap-1.5 bg-white border border-orange-100 rounded-full px-3 py-1.5 shadow-sm">
                 <i class="pi pi-tag text-[#EB3131] text-xs"></i>
-                <span class="text-[11px] font-semibold text-gray-700">Discount tiers up to 5%</span>
+                <span class="text-[11px] font-semibold text-gray-700">Discount grows as the group fills</span>
               </div>
             </div>
 

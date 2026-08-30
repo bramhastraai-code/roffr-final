@@ -58,14 +58,22 @@ const STRICT = env.SITEMAP_STRICT === '1' || env.SITEMAP_STRICT === 'true'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+// The catalogue call asks for 775+ records in one response, which regularly
+// takes longer than a typical API timeout. 12s was too tight and meant
+// projects silently dropped out of the sitemap on every build.
+const FETCH_TIMEOUT_MS = 45000
+
 async function apiFetch(path) {
   try {
-    const res = await fetch(`${API}${path}`, { signal: AbortSignal.timeout(12000) })
+    const res = await fetch(`${API}${path}`, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
     if (!res.ok) {
       console.warn(`  ⚠  API ${path} → HTTP ${res.status}`)
       return null
     }
-    return res.json()
+    // `await` matters: without it the promise is returned before the try/catch
+    // exits, so a timeout while reading the body escapes this handler and
+    // fails the whole build instead of degrading to a warning.
+    return await res.json()
   } catch (err) {
     console.warn(`  ⚠  API ${path} unreachable: ${err.message}`)
     return null

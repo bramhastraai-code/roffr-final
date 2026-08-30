@@ -43,7 +43,7 @@ const { closeBenefitsModal } = modalStore;
               </li>
               <li class="flex items-start gap-3">
                 <i class="pi pi-check text-white mt-1 text-lg"></i>
-                <span class="text-base">Exclusive Discounts Up to 30%</span>
+                <span class="text-base">Exclusive Discounts Up to 15%</span>
               </li>
               <li class="flex items-start gap-3">
                 <i class="pi pi-check text-white mt-1 text-lg"></i>

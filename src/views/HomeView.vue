@@ -13,6 +13,9 @@ import BlogsInsights from '@/sections/homeSections/BlogsInsights.vue';
 import FindRealtorBanner from '@/sections/homeSections/FindRealtorBanner.vue';
 import FaqSection from '@/sections/homeSections/FaqSection.vue';
 import RecentlyViewedSection from '@/sections/homeSections/RecentlyViewedSection.vue';
+import WhyTogetherSection from '@/sections/homeSections/WhyTogetherSection.vue';
+import SavingsCalculator from '@/sections/homeSections/SavingsCalculator.vue';
+import ProofLadderSection from '@/sections/homeSections/ProofLadderSection.vue';
 </script>
 
 <template>
@@ -28,6 +31,10 @@ import RecentlyViewedSection from '@/sections/homeSections/RecentlyViewedSection
     <Reveal>
       <HeroSearchBar />
     </Reveal>
+
+    <!-- Explains the mechanism before any deal is shown. Its own children
+         reveal individually, so it is not wrapped in <Reveal>. -->
+    <WhyTogetherSection />
 
     <!-- Only renders for returning visitors who have viewed something.
          Not wrapped in <Reveal>: its header and cards reveal themselves with
@@ -46,6 +53,12 @@ import RecentlyViewedSection from '@/sections/homeSections/RecentlyViewedSection
       <GroupBuyDealsSection />
     </Reveal>
 
+    <!-- Promise, then proof: what you'd save, then what two buyers did save.
+         Both self-reveal their children. -->
+    <SavingsCalculator />
+
+    <ProofLadderSection />
+
     <Reveal>
       <FeaturedProjectsSection />
     </Reveal>
@@ -53,9 +66,8 @@ import RecentlyViewedSection from '@/sections/homeSections/RecentlyViewedSection
     <!-- Not wrapped: the bento tiles stagger themselves with v-reveal -->
     <CitiesSection />
 
-    <Reveal>
-      <HowItWorks />
-    </Reveal>
+    <!-- Not wrapped: its step cards stagger themselves with v-reveal -->
+    <HowItWorks />
 
     <Reveal>
       <AboutSection />

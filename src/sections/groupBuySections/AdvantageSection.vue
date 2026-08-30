@@ -6,7 +6,7 @@ const advantages = ref([
     color: 'from-orange-400 to-orange-500',
     img: "/svg/GroupBuy/rupee.svg",
     title: 'Below Market Prices',
-    description: 'Access properties at 10-30% below market prices by pooling purchasing power with others.'
+    description: 'Access properties at 5-15% below market prices by pooling purchasing power with others.'
   },
   {
     color: 'from-emerald-400 to-emerald-500',
